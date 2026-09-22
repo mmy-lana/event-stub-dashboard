@@ -1,5 +1,10 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 
+import { AttendeeRowItemComponent } from '../../shared/molecules/attendee-row-item/attendee-row-item.component';
+import { SearchFilterToolbarComponent, type StatusFilter } from '../../shared/molecules/search-filter-toolbar/search-filter-toolbar.component';
+import { StatCardComponent } from '../../shared/molecules/stat-card/stat-card.component';
+import { TicketStubCardComponent } from '../../shared/molecules/ticket-stub-card/ticket-stub-card.component';
+import { TierSelectorRowComponent } from '../../shared/molecules/tier-selector-row/tier-selector-row.component';
 import { BadgeComponent, type BadgeStatus } from '../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { BarcodeStripComponent } from '../../shared/ui/barcode-strip/barcode-strip.component';
@@ -7,6 +12,7 @@ import { PerforationDividerComponent } from '../../shared/ui/perforation-divider
 import { QrCanvasComponent } from '../../shared/ui/qr-canvas/qr-canvas.component';
 import { SyncIndicatorComponent } from '../../shared/ui/sync-indicator/sync-indicator.component';
 import { TicketNotchComponent } from '../../shared/ui/ticket-notch/ticket-notch.component';
+import type { AttendeeTicket, TicketTier } from '../../core/models/ticket.model';
 import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
 
 /**
@@ -20,13 +26,18 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
   selector: 'app-component-gallery',
   standalone: true,
   imports: [
+    AttendeeRowItemComponent,
     BadgeComponent,
     BarcodeStripComponent,
     ButtonComponent,
     PerforationDividerComponent,
     QrCanvasComponent,
+    SearchFilterToolbarComponent,
+    StatCardComponent,
     SyncIndicatorComponent,
-    TicketNotchComponent
+    TicketNotchComponent,
+    TicketStubCardComponent,
+    TierSelectorRowComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -136,6 +147,76 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
             <p class="note">Code 128 Set B with mod-103 check symbol.</p>
           </div>
         </div>
+      </section>
+
+      <!-- KPI tiles -->
+      <section class="panel" aria-labelledby="stats-heading">
+        <h2 id="stats-heading" class="panel-title">Dashboard metrics</h2>
+        <div class="stat-grid">
+          @for (stat of statCards; track stat.label) {
+            <app-stat-card
+              [label]="stat.label"
+              [value]="stat.value"
+              [subtext]="stat.subtext"
+              [trend]="stat.trend"
+              [showProgress]="stat.showProgress"
+              [percentage]="stat.percentage" />
+          }
+        </div>
+      </section>
+
+      <!-- Tier stepper -->
+      <section class="panel" aria-labelledby="tiers-heading">
+        <h2 id="tiers-heading" class="panel-title">Ticket tiers</h2>
+        @for (tier of tiers; track tier.id) {
+          <app-tier-selector-row
+            [tier]="tier"
+            [quantity]="quantityFor(tier.id)"
+            [totalSelected]="totalSelected()"
+            (quantityChange)="setQuantity(tier.id, $event)" />
+        }
+        <p class="note" role="status">
+          {{ totalSelected() }} selected · limit {{ maxPerOrder }} per order
+        </p>
+      </section>
+
+      <!-- Roster toolbar + rows -->
+      <section class="panel" aria-labelledby="roster-heading">
+        <h2 id="roster-heading" class="panel-title">Attendee roster</h2>
+
+        <app-search-filter-toolbar
+          [tiers]="tiers"
+          [searchTerm]="searchTerm()"
+          [statusFilter]="statusFilter()"
+          [resultCount]="2"
+          [totalCount]="3"
+          (searchTermChange)="searchTerm.set($event)"
+          (statusFilterChange)="statusFilter.set($event)"
+          (filtersReset)="resetFilters()" />
+
+        <div class="roster-list">
+          @for (attendee of attendees; track attendee.id) {
+            <app-attendee-row-item
+              [ticket]="attendee"
+              [selectable]="true"
+              [selected]="selectedIds().includes(attendee.id)"
+              (toggleCheckIn)="recordInteraction('toggle ' + attendee.ticketStubNumber)"
+              (selectionChange)="onSelectionChange($event)"
+              (openDetails)="recordInteraction('pass ' + attendee.ticketStubNumber)" />
+          }
+        </div>
+      </section>
+
+      <!-- Ticket stub -->
+      <section class="panel" aria-labelledby="stub-heading">
+        <h2 id="stub-heading" class="panel-title">Tear-off ticket stub</h2>
+        <app-ticket-stub-card
+          [ticket]="stubTicket"
+          [eventTitle]="'Summit Tech Conf 2026'"
+          [venueName]="'Moscone Center, Hall D · San Francisco, CA'"
+          [formattedDateTime]="'Sat, Oct 24, 2026 · 9:00 AM – 5:00 PM PDT'"
+          [pending]="stubPending()"
+          (onToggleCheckIn)="toggleStub()" />
       </section>
 
       <!-- Sync indicator -->
@@ -313,6 +394,30 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
         background: var(--color-ticket-canvas);
       }
 
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      @media (min-width: 768px) {
+        .stat-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .stat-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+
+      .roster-list {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
       .tag-card.wide {
         flex: 1 1 260px;
         min-width: 0;
@@ -379,6 +484,229 @@ export class ComponentGalleryComponent {
   protected readonly barcodeValue = signal<string>(
     TicketSecurityUtility.generateBarcodeValue('EVT-8924-XQ9', 'SEC4', 'DOORB')
   );
+
+  /** KPI tiles exercising the ring, trend and compact variants. */
+  protected readonly statCards = [
+    {
+      label: 'Tickets sold',
+      value: '1,248',
+      subtext: '+86 today',
+      trend: 'up' as const,
+      showProgress: false,
+      percentage: 0
+    },
+    {
+      label: 'Check-in rate',
+      value: '73.4%',
+      subtext: '916 of 1,248',
+      trend: 'up' as const,
+      showProgress: true,
+      percentage: 73.4
+    },
+    {
+      label: 'Gross revenue',
+      value: '$48.2K',
+      subtext: 'after refunds',
+      trend: 'flat' as const,
+      showProgress: false,
+      percentage: 0
+    },
+    {
+      label: 'Remaining capacity',
+      value: '252',
+      subtext: '-64 this hour',
+      trend: 'down' as const,
+      showProgress: true,
+      percentage: 16.8
+    }
+  ];
+
+  /** Ticket tiers rendered by the stepper. */
+  protected readonly tiers: readonly TicketTier[] = [
+    {
+      id: 'tier_vip',
+      eventId: 'evt_devcon_2026',
+      name: 'VIP Access All-Inclusive',
+      tierType: 'paid',
+      priceCents: 24900,
+      currency: 'USD',
+      initialQuota: 120,
+      availableQuota: 18,
+      maxPerOrder: 4,
+      salesStartDate: '2026-01-05T17:00:00.000Z',
+      salesEndDate: '2026-10-24T07:00:00.000Z',
+      perks: ['Front row seating', 'Speaker lounge', 'Dinner reception'],
+      badgeColorHex: '#7c3aed',
+      isActive: true,
+      displayOrder: 1
+    },
+    {
+      id: 'tier_ga',
+      eventId: 'evt_devcon_2026',
+      name: 'General Admission',
+      tierType: 'paid',
+      priceCents: 12500,
+      currency: 'USD',
+      initialQuota: 900,
+      availableQuota: 214,
+      maxPerOrder: 8,
+      salesStartDate: '2026-01-05T17:00:00.000Z',
+      salesEndDate: '2026-10-24T07:00:00.000Z',
+      perks: ['All keynotes', 'Expo hall'],
+      badgeColorHex: '#ff5a36',
+      isActive: true,
+      displayOrder: 2
+    },
+    {
+      id: 'tier_student',
+      eventId: 'evt_devcon_2026',
+      name: 'Student Pass',
+      tierType: 'free',
+      priceCents: 0,
+      currency: 'USD',
+      initialQuota: 80,
+      availableQuota: 0,
+      maxPerOrder: 2,
+      salesStartDate: '2026-01-05T17:00:00.000Z',
+      salesEndDate: '2026-10-24T07:00:00.000Z',
+      perks: ['Valid student ID required'],
+      badgeColorHex: '#10b981',
+      isActive: true,
+      displayOrder: 3
+    }
+  ];
+
+  /** Attendees rendered in the roster section. */
+  protected readonly attendees: readonly AttendeeTicket[] = [
+    {
+      id: 'tkt_9f2c41',
+      eventId: 'evt_devcon_2026',
+      orderId: 'ord_7781',
+      ticketTierId: 'tier_vip',
+      ticketTierName: 'VIP Access All-Inclusive',
+      ticketStubNumber: 'EVT-8924-XQ9',
+      firstName: 'Alexandra',
+      lastName: 'Chen',
+      email: 'alexandra.chen@northwind.dev',
+      phoneNumber: '+14155552671',
+      companyOrAffiliation: 'Northwind Labs',
+      checkInStatus: 'confirmed',
+      checkedInAt: null,
+      checkedInByUserId: null,
+      qrVerificationSecret: '',
+      barcodeValue: 'EVT-8924-XQ9-SEC4-DOOR',
+      seatAssignment: 'A-14',
+      createdAt: '2026-09-01T10:00:00.000Z',
+      updatedAt: '2026-09-01T10:00:00.000Z'
+    },
+    {
+      id: 'tkt_31ab90',
+      eventId: 'evt_devcon_2026',
+      orderId: 'ord_7782',
+      ticketTierId: 'tier_ga',
+      ticketTierName: 'General Admission',
+      ticketStubNumber: 'EVT-4417-KM2',
+      firstName: 'Marcus',
+      lastName: 'Delgado',
+      email: 'm.delgado@lumenworks.io',
+      phoneNumber: '+14155558899',
+      companyOrAffiliation: 'Lumen Works',
+      checkInStatus: 'checked_in',
+      checkedInAt: '2026-10-24T16:12:00.000Z',
+      checkedInByUserId: 'kiosk_door_b',
+      qrVerificationSecret: '',
+      barcodeValue: 'EVT-4417-KM2-GAXX-MAIN',
+      createdAt: '2026-09-02T11:30:00.000Z',
+      updatedAt: '2026-10-24T16:12:00.000Z'
+    },
+    {
+      id: 'tkt_77de02',
+      eventId: 'evt_devcon_2026',
+      orderId: 'ord_7783',
+      ticketTierId: 'tier_ga',
+      ticketTierName: 'General Admission',
+      ticketStubNumber: 'EVT-1180-PQ7',
+      firstName: 'Priya',
+      lastName: 'Raman',
+      email: 'priya.raman@arcadia.health',
+      phoneNumber: '+14155550123',
+      companyOrAffiliation: 'Arcadia Health',
+      checkInStatus: 'cancelled',
+      checkedInAt: null,
+      checkedInByUserId: null,
+      qrVerificationSecret: '',
+      barcodeValue: 'EVT-1180-PQ7-GAXX-MAIN',
+      createdAt: '2026-09-04T09:15:00.000Z',
+      updatedAt: '2026-09-20T14:00:00.000Z'
+    }
+  ];
+
+  /** Maximum tickets per order used by the tier steppers. */
+  protected readonly maxPerOrder = 10;
+
+  /** Live search term bound to the toolbar. */
+  protected readonly searchTerm = signal<string>('');
+
+  /** Live status filter bound to the toolbar. */
+  protected readonly statusFilter = signal<StatusFilter>('all');
+
+  /** Selected roster rows. */
+  protected readonly selectedIds = signal<readonly string[]>([]);
+
+  /** Quantity per tier id. */
+  private readonly quantities = signal<Readonly<Record<string, number>>>({ tier_vip: 1 });
+
+  /** Ticket rendered on the stub preview. */
+  protected readonly stubTicket: AttendeeTicket = {
+    ...this.attendees[0],
+    qrVerificationSecret: TicketSecurityUtility.generateVerifiableToken(
+      'tkt_9f2c41',
+      'EVT-8924-XQ9',
+      'evt_devcon_2026'
+    )
+  };
+
+  /** Pending state for the stub admission action. */
+  protected readonly stubPending = signal<boolean>(false);
+
+  /** Total tickets selected across every tier. */
+  protected readonly totalSelected = computed(() =>
+    Object.values(this.quantities()).reduce((total, quantity) => total + quantity, 0)
+  );
+
+  /** Current quantity for a tier. */
+  protected quantityFor(tierId: string): number {
+    return this.quantities()[tierId] ?? 0;
+  }
+
+  /** Applies a new quantity for a tier. */
+  protected setQuantity(tierId: string, quantity: number): void {
+    this.quantities.update((current) => ({ ...current, [tierId]: quantity }));
+  }
+
+  /** Handles a roster selection change. */
+  protected onSelectionChange(event: { ticket: AttendeeTicket; selected: boolean }): void {
+    this.selectedIds.update((current) =>
+      event.selected
+        ? [...current.filter((id) => id !== event.ticket.id), event.ticket.id]
+        : current.filter((id) => id !== event.ticket.id)
+    );
+  }
+
+  /** Clears the toolbar filters. */
+  protected resetFilters(): void {
+    this.searchTerm.set('');
+    this.statusFilter.set('all');
+  }
+
+  /** Simulates the stub admission action with a visible busy state. */
+  protected toggleStub(): void {
+    this.stubPending.set(true);
+    setTimeout(() => {
+      this.stubPending.set(false);
+      this.recordInteraction('stub admission');
+    }, 350);
+  }
 
   /** Records a button activation for the gallery's status line. */
   protected recordInteraction(variant: string): void {
