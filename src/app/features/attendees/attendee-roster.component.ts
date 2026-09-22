@@ -290,7 +290,7 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         align-items: center;
         justify-content: center;
         width: var(--touch-target-min);
-        height: 32px;
+        height: var(--touch-target-min);
         margin-left: -10px;
       }
 
@@ -304,6 +304,7 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        min-height: 44px;
         padding: 6px 8px;
         border: none;
         border-radius: var(--radius-sm);
@@ -355,7 +356,7 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
       }
 
       .pager-size select {
-        min-height: 36px;
+        min-height: 44px;
         padding: 4px 8px;
         border: 1px solid var(--color-border-strong);
         border-radius: var(--radius-sm);
@@ -454,6 +455,7 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
       }
 
       .drawer-close {
+        flex: 0 0 auto;
         width: var(--touch-target-min);
         height: var(--touch-target-min);
         border: 1px solid var(--color-border);

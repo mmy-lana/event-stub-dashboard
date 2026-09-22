@@ -375,8 +375,9 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
       }
 
       .banner-close {
-        width: 28px;
-        height: 28px;
+        flex: 0 0 auto;
+        width: 44px;
+        height: 44px;
         border: none;
         border-radius: 50%;
         background: rgba(5, 150, 105, 0.12);

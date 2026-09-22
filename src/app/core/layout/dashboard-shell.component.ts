@@ -90,7 +90,10 @@ import { SyncIndicatorComponent } from '../../shared/ui/sync-indicator/sync-indi
         left: -9999px;
         top: 0;
         z-index: 100;
-        padding: 10px 16px;
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 12px 16px;
         background: var(--color-charcoal);
         color: #ffffff;
         font-size: 13px;
@@ -126,6 +129,8 @@ import { SyncIndicatorComponent } from '../../shared/ui/sync-indicator/sync-indi
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        min-height: 44px;
+        padding: 0 4px;
         color: var(--color-ink);
         font-weight: 900;
         letter-spacing: -0.5px;
@@ -189,6 +194,9 @@ import { SyncIndicatorComponent } from '../../shared/ui/sync-indicator/sync-indi
       }
 
       .nav-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
         padding: 8px 12px;
         border-radius: var(--radius-md);
         font-size: 13px;

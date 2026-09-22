@@ -150,7 +150,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
       }
 
       .pad-chip {
-        min-height: 32px;
+        min-height: 44px;
         padding: 4px 10px;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-pill);

@@ -131,9 +131,9 @@ export type StatusFilter = 'all' | CheckInStatus;
 
       .clear-btn {
         position: absolute;
-        right: 6px;
-        width: 32px;
-        height: 32px;
+        right: 2px;
+        width: 44px;
+        height: 44px;
         border: none;
         border-radius: 50%;
         background: var(--color-canvas);
@@ -212,7 +212,7 @@ export type StatusFilter = 'all' | CheckInStatus;
       }
 
       .filter-pill {
-        min-height: 36px;
+        min-height: 44px;
         padding: 6px 12px;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-pill);
@@ -230,7 +230,7 @@ export type StatusFilter = 'all' | CheckInStatus;
       }
 
       .reset-btn {
-        min-height: 36px;
+        min-height: 44px;
         padding: 6px 12px;
         border: none;
         background: transparent;

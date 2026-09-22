@@ -81,7 +81,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 
       /* Sizes: md/lg guarantee the 48px field touch target. */
       .size-sm {
-        min-height: var(--control-height-sm);
+        min-height: 44px;
         padding: 6px 12px;
         font-size: 12px;
       }

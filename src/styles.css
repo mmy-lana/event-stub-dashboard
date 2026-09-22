@@ -78,7 +78,8 @@
 
   /* Touch ergonomics: every interactive control honours a 48px hit box. */
   --touch-target-min: 48px;
-  --control-height-sm: 36px;
+  /* Dense desktop controls still honour a 44px minimum hit area. */
+  --control-height-sm: 44px;
   --control-height-md: 44px;
   --control-height-lg: 52px;
 
