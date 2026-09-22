@@ -212,7 +212,7 @@ export class ManualCheckInPadComponent {
   /** Normalizes the draft as the operator types. */
   public onInput(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;
-    const normalized = raw.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 14);
+    const normalized = raw.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 16);
     this.draft.set(normalized);
   }
 
