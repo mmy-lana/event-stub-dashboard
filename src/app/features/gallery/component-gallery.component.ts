@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 
+import { CameraScannerModalComponent } from '../terminal/camera-scanner-modal.component';
+import { ManualCheckInPadComponent } from '../terminal/manual-check-in-pad.component';
 import { AttendeeRowItemComponent } from '../../shared/molecules/attendee-row-item/attendee-row-item.component';
 import { SearchFilterToolbarComponent, type StatusFilter } from '../../shared/molecules/search-filter-toolbar/search-filter-toolbar.component';
 import { StatCardComponent } from '../../shared/molecules/stat-card/stat-card.component';
@@ -28,6 +30,8 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
   imports: [
     AttendeeRowItemComponent,
     BadgeComponent,
+    CameraScannerModalComponent,
+    ManualCheckInPadComponent,
     BarcodeStripComponent,
     ButtonComponent,
     PerforationDividerComponent,
@@ -219,6 +223,24 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
           (onToggleCheckIn)="toggleStub()" />
       </section>
 
+      <!-- Kiosk widgets -->
+      <section class="panel" aria-labelledby="kiosk-heading">
+        <h2 id="kiosk-heading" class="panel-title">Kiosk widgets</h2>
+
+        <div class="kiosk-grid">
+          <app-camera-scanner-modal (detected)="recordInteraction('scan ' + $event)" />
+          <div class="kiosk-column">
+            <app-manual-check-in-pad
+              [busy]="padBusy()"
+              [recentCodes]="recentCodes()"
+              (submitted)="onPadSubmit($event)" />
+            @if (lastPadCode() !== null) {
+              <p class="note" role="status">Pad submitted: {{ lastPadCode() }}</p>
+            }
+          </div>
+        </div>
+      </section>
+
       <!-- Sync indicator -->
       <section class="panel" aria-labelledby="sync-heading">
         <h2 id="sync-heading" class="panel-title">Sync diagnostics</h2>
@@ -394,6 +416,26 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
         background: var(--color-ticket-canvas);
       }
 
+      .kiosk-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      @media (min-width: 768px) {
+        .kiosk-grid {
+          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+          align-items: start;
+        }
+      }
+
+      .kiosk-column {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+
       .stat-grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -401,13 +443,53 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
       }
 
       @media (min-width: 768px) {
-        .stat-grid {
+        .kiosk-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      @media (min-width: 768px) {
+        .kiosk-grid {
+          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+          align-items: start;
+        }
+      }
+
+      .kiosk-column {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .stat-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
 
       @media (min-width: 1024px) {
-        .stat-grid {
+        .kiosk-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      @media (min-width: 768px) {
+        .kiosk-grid {
+          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+          align-items: start;
+        }
+      }
+
+      .kiosk-column {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .stat-grid {
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
       }
@@ -706,6 +788,24 @@ export class ComponentGalleryComponent {
       this.stubPending.set(false);
       this.recordInteraction('stub admission');
     }, 350);
+  }
+
+  /** Pending state for the manual entry pad. */
+  protected readonly padBusy = signal<boolean>(false);
+
+  /** Recently submitted stub numbers offered as chips. */
+  protected readonly recentCodes = signal<readonly string[]>(['EVT-8924-XQ9', 'EVT-4417-KM2']);
+
+  /** Last code submitted through the pad. */
+  protected readonly lastPadCode = signal<string | null>(null);
+
+  /** Handles a manual pad submission with a short busy window. */
+  protected onPadSubmit(code: string): void {
+    this.padBusy.set(true);
+    setTimeout(() => {
+      this.padBusy.set(false);
+      this.lastPadCode.set(code);
+    }, 250);
   }
 
   /** Records a button activation for the gallery's status line. */

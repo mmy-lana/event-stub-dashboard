@@ -4,8 +4,14 @@
 #   pnpm emulator:logs   # follow emulator output
 #   pnpm emulator:down   # stop the suite
 #
-# Emulator data is imported from / exported to ./firebase-data, so a kiosk demo
-# survives `docker compose down`. The emulator rules and indexes live in
+# Every port is overridable so the suite can coexist with another emulator or a
+# service already bound to a default port, e.g.
+#
+#   FIRESTORE_PORT=8081 AUTH_PORT=9100 STORAGE_PORT=9200 UI_PORT=4001 pnpm emulator:up
+#
+# Remember to point the matching VITE_FIREBASE_EMULATOR_* variables in `.env` at
+# the same ports. Emulator data is imported from / exported to ./firebase-data, so
+# a kiosk demo survives `docker compose down`. Rules and indexes live in
 # ./firebase/firebase.json.
 services:
   firebase-emulator:
@@ -17,18 +23,23 @@ services:
       - ./firebase:/app
       - ./firebase-data:/app/emulator-data
     ports:
-      - "4000:4000"   # Firebase Emulator UI
-      - "8080:8080"   # Cloud Firestore Emulator
-      - "9099:9099"   # Firebase Authentication Emulator
-      - "9199:9199"   # Cloud Storage Emulator
+      - "${UI_PORT:-4000}:4000"              # Firebase Emulator UI
+      - "${FIRESTORE_PORT:-8080}:8080"       # Cloud Firestore Emulator
+      - "${AUTH_PORT:-9099}:9099"            # Firebase Authentication Emulator
+      - "${STORAGE_PORT:-9199}:9199"         # Cloud Storage Emulator
     environment:
       - FIREBASE_PROJECT=event-rsvp-ticketing
-    command: >
-      sh -c "npm install -g firebase-tools &&
-             firebase emulators:start
-               --project event-rsvp-ticketing
-               --import=/app/emulator-data
-               --export-on-exit=/app/emulator-data"
+    # Exec-form command: the emulator flags must stay on a single shell line, so a
+    # folded YAML scalar would break them apart. A headless JRE is required by the
+    # Firestore emulator, and the Alpine base image does not ship one.
+    command:
+      - sh
+      - -c
+      - >-
+        apk add --no-cache openjdk21-jre-headless >/dev/null &&
+        npm install -g firebase-tools --silent &&
+        firebase emulators:start --project event-rsvp-ticketing
+        --import=/app/emulator-data --export-on-exit=/app/emulator-data
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "8080"]
       interval: 5s
