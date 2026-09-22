@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+firebase-data
+.firebase
+*.log
+.DS_Store
+repomix-output.xml
