@@ -29,6 +29,7 @@ import {
   resolveFirebaseEnvironmentConfig,
   type FirebaseEnvironmentConfig
 } from './firebase-environment';
+import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
 
 export type { FirebaseEnvironmentConfig } from './firebase-environment';
 
@@ -124,6 +125,12 @@ export function provideTicketingFirebase(
     // Surfaced once at bootstrap so a misconfigured deployment is obvious.
     console.warn(`[StubDeck] ${config.warning}`);
   }
+
+  // Keying the ticket digest must happen before any pass is minted or verified, so
+  // it is applied here rather than at each call site.
+  TicketSecurityUtility.setVerificationSecret(
+    import.meta.env?.['VITE_TICKET_VERIFICATION_SECRET']
+  );
 
   const instances = provideFirebaseApp(config);
 

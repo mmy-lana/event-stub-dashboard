@@ -8,7 +8,7 @@
  * ```
  *
  * where `HASH` is a keyed FNV-1a digest of `TICKET_ID__STUB_NUMBER__EVENT_ID` plus
- * {@link TICKET_VERIFICATION_SECRET}, rendered as a fixed-width 8-character
+ * the configured verification secret, rendered as a fixed-width 8-character
  * lower-case hex string (zero padded). The digest is a tamper-detection checksum,
  * not a signature — it lets a kiosk reject hand-typed or re-encoded passes without
  * a network round trip, while the authoritative admission decision still happens
@@ -17,10 +17,9 @@
  * {@link TicketSecurityUtility.generateVerifiableToken} and
  * {@link TicketSecurityUtility.verifyPayload} must render the digest identically.
  *
- * Changing {@link TICKET_VERIFICATION_SECRET} invalidates every pass already
- * stored in `attendees/{id}.qrVerificationSecret`: those tokens were minted with
- * the previous key and will verify as `tampered`. Re-issue passes after any key
- * change.
+ * Changing the secret invalidates every pass already stored in
+ * `attendees/{id}.qrVerificationSecret`: those tokens were minted with the previous
+ * key and will verify as `tampered`. Re-issue passes after any key change.
  *
  * Depends only on `VALIDATION_RULES` from the domain model.
  */
@@ -47,17 +46,38 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DIGIT_ALPHABET = '0123456789';
 
 /**
- * Salt mixed into every token digest.
+ * Fallback salt used when no verification secret is configured at runtime.
  *
- * The value is bundled with the client, so it is obscurity rather than a secret:
- * it defeats forging a pass from the public `TICKET_ID::STUB::` plaintext, but a
- * reader of the bundle can still compute valid digests. Treat a real guarantee as
- * requiring a server-issued signature.
+ * The value ships inside the client bundle either way, so it is obscurity rather
+ * than a secret: it defeats forging a pass from the public `TICKET_ID::STUB::`
+ * plaintext, but a reader of the bundle can still compute valid digests. Treat a
+ * real guarantee as requiring a server-issued signature.
+ *
+ * Set `VITE_TICKET_VERIFICATION_SECRET` to override it per environment. Note that
+ * Vite inlines `VITE_*` values at build time, so the override is compiled into the
+ * bundle too — it enables rotation between deployments, not secrecy.
  */
-const TICKET_VERIFICATION_SECRET = 'STUBDECK_GATE_SECURITY_SALT_9841';
+const DEFAULT_VERIFICATION_SECRET = 'STUBDECK_GATE_SECURITY_SALT_9841';
 
-/** Ticket security helpers; all members are pure and side-effect free. */
+/** Ticket security helpers. Digest rendering is pure; the key is configurable. */
 export class TicketSecurityUtility {
+  /** Key mixed into every digest; defaults to {@link DEFAULT_VERIFICATION_SECRET}. */
+  private static verificationSecret = DEFAULT_VERIFICATION_SECRET;
+
+  /**
+   * Overrides the digest key, typically from `VITE_TICKET_VERIFICATION_SECRET` at
+   * bootstrap.
+   *
+   * Blank and non-string values are ignored so an unset variable keeps the default
+   * rather than silently keying every digest with an empty string.
+   *
+   * @param secret Candidate secret; ignored when absent or blank.
+   */
+  public static setVerificationSecret(secret: string | undefined): void {
+    if (typeof secret === 'string' && secret.trim().length > 0) {
+      TicketSecurityUtility.verificationSecret = secret.trim();
+    }
+  }
   /**
    * Creates a verifiable QR code payload.
    *
@@ -140,7 +160,7 @@ export class TicketSecurityUtility {
 
   /** Computes a keyed tamper-detection digest over token segments. */
   private static computeSaltedDigest(input: string): string {
-    const salted = `${input}::${TICKET_VERIFICATION_SECRET}`;
+    const salted = `${input}::${TicketSecurityUtility.verificationSecret}`;
     return TicketSecurityUtility.computeFnv1aHash(salted).toString(16).padStart(8, '0');
   }
 

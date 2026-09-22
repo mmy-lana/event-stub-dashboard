@@ -130,15 +130,15 @@ export class OfflineMutationService {
     timestamp: string,
     scanMethod: ScanMethod = 'camera_qr'
   ): Promise<OfflineOutboxItem> {
-    const duplicate = this.outboxQueueSignal().find(
-      (item) =>
-        item.actionType === 'CHECK_IN_ATTENDEE' &&
-        item.entityId === ticketId &&
-        item.syncStatus !== 'failed_permanent'
-    );
+    // Deduplicate against the entity's *latest* queued mutation, not its first
+    // pending check-in. Scanning a ticket that was already reversed offline must
+    // queue a fresh admission; matching on action type alone would return the stale
+    // pre-reversal mutation, leaving the queue to settle as admit-then-reverse while
+    // the kiosk reports a successful admission.
+    const lastEntityMutation = findLastMutationForEntity(this.outboxQueueSignal(), ticketId);
 
-    if (duplicate !== undefined) {
-      return duplicate;
+    if (lastEntityMutation !== undefined && lastEntityMutation.actionType === 'CHECK_IN_ATTENDEE') {
+      return lastEntityMutation;
     }
 
     const mutation: OfflineOutboxItem = {
@@ -188,6 +188,18 @@ export class OfflineMutationService {
     operatorId: string,
     timestamp: string
   ): Promise<OfflineOutboxItem> {
+    // Symmetrical to the check-in path: a second reversal tap is redundant only if
+    // the reversal is still the entity's latest mutation. If a re-admission was
+    // queued in between, this reversal is a genuinely new intent and must be queued.
+    const lastEntityMutation = findLastMutationForEntity(this.outboxQueueSignal(), ticketId);
+
+    if (
+      lastEntityMutation !== undefined &&
+      lastEntityMutation.actionType === 'REVERSE_ADMISSION'
+    ) {
+      return lastEntityMutation;
+    }
+
     const mutation: OfflineOutboxItem = {
       id: createIdentifier(),
       actionType: 'REVERSE_ADMISSION',
@@ -659,6 +671,26 @@ function createIdentifier(): string {
 /** Reads an unknown payload value as a string. */
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/**
+ * Finds the most recently queued mutation still waiting on a given entity.
+ *
+ * Permanent failures are skipped: they no longer represent the entity's pending
+ * intent, so the latest *live* mutation is the one deduplication must compare
+ * against.
+ */
+function findLastMutationForEntity(
+  queue: readonly OfflineOutboxItem[],
+  entityId: string
+): OfflineOutboxItem | undefined {
+  for (let index = queue.length - 1; index >= 0; index -= 1) {
+    const item = queue[index];
+    if (item.entityId === entityId && item.syncStatus !== 'failed_permanent') {
+      return item;
+    }
+  }
+  return undefined;
 }
 
 /** Narrows a payload value to a supported scan method. */

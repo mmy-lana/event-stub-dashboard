@@ -17,6 +17,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_EMULATOR_FIRESTORE_PORT?: string;
   readonly VITE_FIREBASE_EMULATOR_AUTH_PORT?: string;
   readonly VITE_FIREBASE_EMULATOR_STORAGE_PORT?: string;
+  readonly VITE_TICKET_VERIFICATION_SECRET?: string;
 }
 
 interface ImportMeta {
