@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "emulator:up": "docker compose up -d firebase-emulator",
     "emulator:down": "docker compose down",
-    "emulator:logs": "docker compose logs -f firebase-emulator"
+    "emulator:logs": "docker compose logs -f firebase-emulator",
+    "deploy:rules": "npx --yes firebase-tools deploy --config firebase/firebase.production.json --only firestore:rules,storage:rules"
   },
   "dependencies": {
     "@angular/common": "latest",

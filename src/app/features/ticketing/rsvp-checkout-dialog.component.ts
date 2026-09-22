@@ -659,7 +659,7 @@ export class RsvpCheckoutDialogComponent {
           discountCents: 0,
           totalCents: subtotalCents,
           currency: this.currency(),
-          paymentStatus: subtotalCents === 0 ? 'free_rsvp' : 'completed',
+          paymentStatus: subtotalCents === 0 ? 'free_rsvp' : 'pending',
           paymentMethod: subtotalCents === 0 ? 'free' : 'stripe_card',
           lineItems,
           createdAt: now

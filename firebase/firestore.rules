@@ -6,8 +6,18 @@ rules_version = '2';
 // so every collection is readable/writable from the client. The hardened rule set
 // that scopes reads to organizer claims, limits attendee writes to a matching
 // ticket secret or a kiosk operator role and makes the door audit trail
-// append-only lives in `firestore.production.rules`; point `firebase.json` at that
-// file (or `firebase deploy --only firestore:rules`) once auth is enabled.
+// append-only lives in `firestore.production.rules`.
+//
+// `firebase.json` deliberately keeps pointing here: the emulator loads whatever
+// that file names, and the production set denies every write until an auth flow
+// exists, which would break check-in, checkout and seeding locally.
+//
+// Production deploys opt into the hardened set explicitly:
+//
+//   pnpm deploy:rules     # firebase.production.json -> firestore.production.rules
+//
+// Flip `firebase.json` itself over only once the app ships an organizer/kiosk
+// sign-in flow.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /events/{eventId} {
