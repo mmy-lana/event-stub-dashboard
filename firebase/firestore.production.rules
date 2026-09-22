@@ -79,9 +79,11 @@ service cloud.firestore {
 
         // Self-service RSVP writes the ticket during checkout, guarded by the
         // checkout transaction; operators may issue passes from the terminal.
+        // A self-registering attendee may never pre-mark a pass as admitted.
         allow create: if isOrganizerOf(eventId)
           || isKioskOperator()
-          || isSelfAttendee(request.resource.data);
+          || (isSelfAttendee(request.resource.data)
+              && request.resource.data.checkInStatus in ['confirmed', 'cancelled']);
 
         // Door terminals only flip admission fields; organizers may edit details.
         allow update: if isOrganizerOf(eventId)

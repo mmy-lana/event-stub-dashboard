@@ -137,10 +137,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
               </app-button>
               <app-button
                 variant="outline"
-                [disabled]="current.checkInStatus === 'cancelled' || isBusy()"
+                [disabled]="(current.checkInStatus === 'cancelled' && order()?.paymentStatus !== 'pending') || isBusy()"
                 [loading]="isBusy()"
                 (pressed)="refund($event)">
-                Refund &amp; cancel
+                {{ order()?.paymentStatus === 'pending' ? 'Release pending quota' : 'Refund & cancel' }}
               </app-button>
             </div>
           </section>
