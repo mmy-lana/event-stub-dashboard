@@ -29,6 +29,7 @@ import {
   type OutboxActionType,
   type ScanMethod
 } from '../models/ticket.model';
+import { createIdentifier } from '../../shared/utils/identifier.util';
 
 /** Where the outbox is currently stored. */
 export type OutboxPersistenceMode = 'indexeddb' | 'memory';
@@ -658,14 +659,6 @@ function readBrowserOnlineState(): boolean {
     return true;
   }
   return navigator.onLine;
-}
-
-/** Creates a unique id, falling back when `crypto.randomUUID` is unavailable. */
-function createIdentifier(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /** Reads an unknown payload value as a string. */

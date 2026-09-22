@@ -16,6 +16,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { TierSelectorRowComponent } from '../../shared/molecules/tier-selector-row/tier-selector-row.component';
 import { CurrencyFormatUtility } from '../../shared/utils/currency-format.util';
 import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
+import { createShortIdentifier } from '../../shared/utils/identifier.util';
 
 /** Outcome banner shown after a checkout attempt. */
 export interface CheckoutOutcome {
@@ -581,7 +582,7 @@ export class RsvpCheckoutDialogComponent {
     eventId: string,
     requested: readonly (readonly [string, number])[]
   ): Promise<CheckoutOutcome> {
-    const orderId = `ord_${createIdentifier()}`;
+    const orderId = `ord_${createShortIdentifier(12)}`;
     const now = new Date().toISOString();
     const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
 
@@ -751,7 +752,7 @@ export class RsvpCheckoutDialogComponent {
     for (const tier of tiers) {
       const quantity = requested.find(([tierId]) => tierId === tier.id)?.[1] ?? 0;
       for (let index = 0; index < quantity; index += 1) {
-        const ticketId = `tkt_${createIdentifier()}`;
+        const ticketId = `tkt_${createShortIdentifier(16)}`;
         const stubNumber = TicketSecurityUtility.generateStubNumber(eventPrefix);
 
         tickets.push({
@@ -797,12 +798,4 @@ export class RsvpCheckoutDialogComponent {
     this.outcome.set(outcome);
     this.completed.emit(outcome);
   }
-}
-
-/** Creates a short unique identifier for orders and tickets. */
-function createIdentifier(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-  }
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
