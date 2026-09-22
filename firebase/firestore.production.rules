@@ -1,0 +1,122 @@
+rules_version = '2';
+
+// Production Firestore rules for the Event RSVP & Ticketing Dashboard.
+//
+// These rules assume the organizer sign-in flow and the kiosk operator custom
+// claim are in place:
+//
+//   * organizers sign in with Firebase Auth and own their event documents
+//     (`events/{eventId}.organizerId == request.auth.uid`);
+//   * door terminals carry a `kiosk_operator` custom claim, issued per device.
+//
+// They are NOT active by default: `firebase/firebase.json` points at
+// `firestore.rules`, which is the permissive emulator baseline used by the demo
+// dataset. To run the dashboard against a hardened project, enable the auth flows
+// and then point the emulator (or `firebase deploy --only firestore:rules`) at
+// this file.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ------------------------------------------------------------------ */
+    /* Helpers                                                            */
+    /* ------------------------------------------------------------------ */
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOrganizerOf(eventId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/events/$(eventId)).data.organizerId == request.auth.uid;
+    }
+
+    function isKioskOperator() {
+      return isSignedIn() && request.auth.token.role == 'kiosk_operator';
+    }
+
+    function isSelfAttendee(attendee) {
+      return isSignedIn()
+        && attendee.email is string
+        && attendee.email.lower() == request.auth.token.email.lower();
+    }
+
+    /** Fields a door terminal may change on an attendee ticket. */
+    function kioskUpdatableFields() {
+      return ['checkInStatus', 'checkedInAt', 'checkedInByUserId', 'updatedAt'];
+    }
+
+    /** Fields an organizer may change on an attendee ticket. */
+    function organizerUpdatableFields() {
+      return [
+        'firstName', 'lastName', 'email', 'phoneNumber', 'companyOrAffiliation',
+        'seatAssignment', 'notes', 'checkInStatus', 'checkedInAt',
+        'checkedInByUserId', 'updatedAt'
+      ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Events                                                             */
+    /* ------------------------------------------------------------------ */
+
+    match /events/{eventId} {
+      // Public listing: the RSVP page needs the event and its capacity counters.
+      allow read: if true;
+      allow create, delete: if isOrganizerOf(eventId);
+      allow update: if isOrganizerOf(eventId);
+
+      match /ticketTiers/{tierId} {
+        // Public pricing and remaining quota; only the organizer can change them.
+        allow read: if true;
+        allow write: if isOrganizerOf(eventId);
+      }
+
+      match /attendees/{attendeeId} {
+        // The organizer sees the roster, a kiosk admits at the door, and an attendee
+        // may read their own pass (matched on the verified email claim).
+        allow read: if isOrganizerOf(eventId)
+          || isKioskOperator()
+          || isSelfAttendee(resource.data);
+
+        // Self-service RSVP writes the ticket during checkout, guarded by the
+        // checkout transaction; operators may issue passes from the terminal.
+        allow create: if isOrganizerOf(eventId)
+          || isKioskOperator()
+          || isSelfAttendee(request.resource.data);
+
+        // Door terminals only flip admission fields; organizers may edit details.
+        allow update: if isOrganizerOf(eventId)
+          || (isKioskOperator()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(kioskUpdatableFields()));
+
+        allow delete: if isOrganizerOf(eventId);
+      }
+
+      match /orders/{orderId} {
+        // Revenue data is organizer-only; the customer sees their own order.
+        allow read: if isOrganizerOf(eventId)
+          || (isSignedIn() && resource.data.customerEmail.lower() == request.auth.token.email.lower());
+        allow create: if isOrganizerOf(eventId) || isSignedIn();
+        // Refunds and payment-status transitions are organizer operations; the
+        // production cascade is the `onOrderUpdated` Cloud Function.
+        allow update: if isOrganizerOf(eventId);
+        allow delete: if isOrganizerOf(eventId);
+      }
+
+      match /audit_logs/{auditLogId} {
+        // Append-only door trail: readable by the organizer and terminals, never
+        // editable once written.
+        allow read: if isOrganizerOf(eventId) || isKioskOperator();
+        allow create: if isOrganizerOf(eventId) || isKioskOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Default deny                                                       */
+    /* ------------------------------------------------------------------ */
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

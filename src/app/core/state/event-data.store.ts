@@ -16,6 +16,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   updateDoc,
   type Unsubscribe
 } from 'firebase/firestore';
@@ -106,6 +107,17 @@ export class EventDataStore {
    * @returns The resolved event id, or `null` when the project is empty.
    */
   public async connect(eventId?: string): Promise<string | null> {
+    // Re-connecting to the event that is already live is a no-op, so every screen
+    // can safely ask for a connection in its constructor without tearing down the
+    // listeners another screen is using.
+    if (
+      eventId !== undefined &&
+      eventId === this.activeEventIdValue &&
+      (this.connectionStateSignal() === 'live' || this.connectionStateSignal() === 'connecting')
+    ) {
+      return this.activeEventIdValue;
+    }
+
     this.disconnect();
     this.connectionStateSignal.set('connecting');
     this.errorMessageSignal.set(null);
@@ -130,6 +142,27 @@ export class EventDataStore {
     this.activeEventIdValue = resolvedId;
     this.subscribeToEvent(resolvedId);
     return resolvedId;
+  }
+
+  /**
+   * Connects only when no live event is available yet.
+   *
+   * Feature screens that can be the first to mount (the kiosk terminal, a
+   * deep-linked pass) call this before reading the roster so a scan is never
+   * resolved against an empty cache.
+   *
+   * @param eventId Optional explicit event id.
+   * @returns The resolved event id, or `null` when the project is empty.
+   */
+  public async ensureConnected(eventId?: string): Promise<string | null> {
+    const current = this.activeEventIdValue;
+    if (
+      current !== null &&
+      (this.connectionStateSignal() === 'live' || this.connectionStateSignal() === 'connecting')
+    ) {
+      return current;
+    }
+    return this.connect(eventId);
   }
 
   /** Tears down every active subscription. */
@@ -275,6 +308,88 @@ export class EventDataStore {
         checkedInByUserId: ticket.checkedInByUserId,
         updatedAt: ticket.updatedAt
       });
+      return false;
+    }
+  }
+
+  /**
+   * Refunds an attendee's order and cancels the ticket.
+   *
+   * The cascade runs in a single transaction: the order is marked refunded, the
+   * attendee ticket is cancelled, the tier quota is released and the event counters
+   * are adjusted. In production this cascade is owned by an `onOrderUpdated` Cloud
+   * Function so a refund issued from the payment provider triggers it too; running
+   * it client-side here keeps the emulator workflow complete.
+   *
+   * @param ticket Attendee ticket whose order is refunded.
+   * @returns `true` when the refund was applied.
+   */
+  public async refundTicket(ticket: AttendeeTicket): Promise<boolean> {
+    const eventId = this.activeEventIdValue;
+    if (eventId === null) {
+      return false;
+    }
+
+    try {
+      await runTransaction(this.firestore, async (transaction) => {
+        const attendeeRef = doc(this.firestore, FirestorePaths.attendee(eventId, ticket.id));
+        const orderRef = doc(this.firestore, FirestorePaths.order(eventId, ticket.orderId));
+        const tierRef = doc(this.firestore, FirestorePaths.ticketTier(eventId, ticket.ticketTierId));
+        const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
+
+        const [attendeeSnapshot, orderSnapshot, tierSnapshot, eventSnapshot] = await Promise.all([
+          transaction.get(attendeeRef),
+          transaction.get(orderRef),
+          transaction.get(tierRef),
+          transaction.get(eventRef)
+        ]);
+
+        if (!attendeeSnapshot.exists()) {
+          throw new Error('ATTENDEE_NOT_FOUND');
+        }
+        if (attendeeSnapshot.data()['checkInStatus'] === 'cancelled') {
+          throw new Error('ALREADY_CANCELLED');
+        }
+
+        const timestamp = new Date().toISOString();
+        transaction.update(attendeeRef, {
+          checkInStatus: 'cancelled',
+          checkedInAt: null,
+          checkedInByUserId: null,
+          updatedAt: timestamp
+        });
+
+        if (orderSnapshot.exists()) {
+          transaction.update(orderRef, { paymentStatus: 'refunded' });
+        }
+
+        if (tierSnapshot.exists()) {
+          const available = Number(tierSnapshot.data()['availableQuota'] ?? 0);
+          transaction.update(tierRef, { availableQuota: available + 1 });
+        }
+
+        if (eventSnapshot.exists()) {
+          const issued = Number(eventSnapshot.data()['totalTicketsIssued'] ?? 0);
+          const checkedIn = Number(eventSnapshot.data()['totalTicketsCheckedIn'] ?? 0);
+          transaction.update(eventRef, {
+            totalTicketsIssued: Math.max(0, issued - 1),
+            totalTicketsCheckedIn:
+              attendeeSnapshot.data()['checkInStatus'] === 'checked_in'
+                ? Math.max(0, checkedIn - 1)
+                : checkedIn,
+            updatedAt: timestamp
+          });
+        }
+      });
+
+      this.patchAttendeeLocally(ticket.id, {
+        checkInStatus: 'cancelled',
+        checkedInAt: null,
+        checkedInByUserId: null
+      });
+      return true;
+    } catch (error: unknown) {
+      this.errorMessageSignal.set(describeError(error));
       return false;
     }
   }

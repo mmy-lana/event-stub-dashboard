@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
-import { provideRouter, withInMemoryScrolling } from '@angular/router';
+import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 
 import { routes } from './app.routes';
 import { provideTicketingFirebase } from './core/firebase/firebase.config';
@@ -17,6 +17,9 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(
       routes,
+      // Route parameters, query parameters and resolved data bind directly to the
+      // matching component inputs (e.g. `ticketId` on the pass detail screen).
+      withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' })
     ),
     provideTicketingFirebase(resolveFirebaseEnvironmentConfig())

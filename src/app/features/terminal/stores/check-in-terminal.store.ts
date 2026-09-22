@@ -138,6 +138,10 @@ export class CheckInTerminalStore {
     this.verificationStateSignal.set('validating');
 
     try {
+      // A kiosk can be the first screen to mount (a bookmark or a fresh tablet), so
+      // make sure the local roster cache is populated before resolving the pass.
+      await this.ensureConnected();
+
       const attendee = this.resolveAttendee(raw);
 
       if (attendee === null) {
@@ -182,6 +186,15 @@ export class CheckInTerminalStore {
     } finally {
       this.isProcessingSignal.set(false);
     }
+  }
+
+  /**
+   * Ensures the shared event data layer is connected.
+   *
+   * @returns The active event id, or `null` when the project has no events.
+   */
+  public async ensureConnected(): Promise<string | null> {
+    return this.data.ensureConnected();
   }
 
   /** Clears the current result and returns the terminal to its idle state. */

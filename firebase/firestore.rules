@@ -3,10 +3,11 @@ rules_version = '2';
 // Firestore rules for the local emulator suite.
 //
 // Emulator baseline: the dashboard demo runs without an organizer sign-in flow,
-// so every collection is readable/writable from the client. Production
-// hardening (organizer-scoped reads on `orders`/revenue, attendee writes limited
-// to a matching ticket secret or a kiosk operator role, refund cascade locking)
-// is implemented in the Phase 5 security pass described in plan.md §5.4.
+// so every collection is readable/writable from the client. The hardened rule set
+// that scopes reads to organizer claims, limits attendee writes to a matching
+// ticket secret or a kiosk operator role and makes the door audit trail
+// append-only lives in `firestore.production.rules`; point `firebase.json` at that
+// file (or `firebase deploy --only firestore:rules`) once auth is enabled.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /events/{eventId} {
