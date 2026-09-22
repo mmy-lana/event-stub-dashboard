@@ -422,13 +422,6 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
         gap: 14px;
       }
 
-      @media (min-width: 768px) {
-        .kiosk-grid {
-          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-          align-items: start;
-        }
-      }
-
       .kiosk-column {
         display: flex;
         flex-direction: column;
@@ -444,52 +437,17 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
 
       @media (min-width: 768px) {
         .kiosk-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 14px;
-      }
-
-      @media (min-width: 768px) {
-        .kiosk-grid {
           grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
           align-items: start;
         }
-      }
 
-      .kiosk-column {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      .stat-grid {
+        .stat-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
 
       @media (min-width: 1024px) {
-        .kiosk-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 14px;
-      }
-
-      @media (min-width: 768px) {
-        .kiosk-grid {
-          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-          align-items: start;
-        }
-      }
-
-      .kiosk-column {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      .stat-grid {
+        .stat-grid {
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
       }

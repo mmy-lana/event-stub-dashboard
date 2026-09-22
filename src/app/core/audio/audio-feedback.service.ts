@@ -123,6 +123,14 @@ export class AudioFeedbackService {
       oscillator.connect(gain);
       gain.connect(this.masterGain ?? context.destination);
 
+      // Oscillators and gains stay referenced by the graph after they stop emitting,
+      // so a kiosk left running for a whole door shift accumulates one node pair per
+      // scan. Detach them once the tone has finished.
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      };
+
       oscillator.start(startAt + offset);
       oscillator.stop(startAt + 0.4 + offset);
     });
@@ -143,11 +151,23 @@ export class AudioFeedbackService {
     gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.45);
     gain.connect(this.masterGain ?? context.destination);
 
+    // Both oscillators share one gain node, so it is released only after the last of
+    // the pair has finished playing.
+    let completed = 0;
     [FREQUENCIES.D3, FREQUENCIES.C_SHARP_3].forEach((frequency) => {
       const oscillator = context.createOscillator();
       oscillator.type = 'sawtooth';
       oscillator.frequency.setValueAtTime(frequency, startAt);
       oscillator.connect(gain);
+
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        completed += 1;
+        if (completed === 2) {
+          gain.disconnect();
+        }
+      };
+
       oscillator.start(startAt);
       oscillator.stop(startAt + 0.5);
     });
@@ -177,6 +197,11 @@ export class AudioFeedbackService {
 
     oscillator.connect(gain);
     gain.connect(this.masterGain ?? context.destination);
+
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gain.disconnect();
+    };
 
     oscillator.start(startAt);
     oscillator.stop(startAt + 0.3);

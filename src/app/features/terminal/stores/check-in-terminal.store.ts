@@ -219,18 +219,27 @@ export class CheckInTerminalStore {
    */
   private async admit(attendee: AttendeeTicket, scanMethod: ScanMethod): Promise<VerificationState> {
     const wasOffline = this.isOperatingOffline();
+    const operatorId = 'kiosk_door_b';
 
-    const applied = await this.data.admitAttendee(
-      attendee,
-      'kiosk_door_b',
-      scanMethod
-    );
+    const applied = await this.data.admitAttendee(attendee, operatorId, scanMethod);
 
     if (!applied) {
       return this.reject('not_found', attendee.ticketStubNumber, 'Admission could not be applied.', attendee);
     }
 
-    this.lastScannedTicketSignal.set(attendee);
+    // `admitAttendee` patches the shared roster synchronously, so this reads back the
+    // exact `checkedInAt`/`checkedInByUserId` that the outbox transaction will persist.
+    // Echoing the pre-admission ticket here would leave the success panel showing a
+    // confirmed pass with no admission time.
+    const admittedAttendee: AttendeeTicket =
+      this.data.attendees().find((candidate) => candidate.id === attendee.id) ?? {
+        ...attendee,
+        checkInStatus: 'checked_in',
+        checkedInAt: new Date().toISOString(),
+        checkedInByUserId: operatorId
+      };
+
+    this.lastScannedTicketSignal.set(admittedAttendee);
     this.verificationStateSignal.set('success');
     this.audio.playCue('success');
     this.countersSignal.update((counters) => ({
@@ -238,11 +247,11 @@ export class CheckInTerminalStore {
       scans: counters.scans + 1,
       admitted: counters.admitted + 1
     }));
-    this.pushActivity(attendee, 'success', wasOffline);
+    this.pushActivity(admittedAttendee, 'success', wasOffline);
     this.lastMessageSignal.set(
       wasOffline
-        ? `${attendee.firstName} ${attendee.lastName} admitted offline and queued for sync.`
-        : `${attendee.firstName} ${attendee.lastName} admitted.`
+        ? `${admittedAttendee.firstName} ${admittedAttendee.lastName} admitted offline and queued for sync.`
+        : `${admittedAttendee.firstName} ${admittedAttendee.lastName} admitted.`
     );
 
     return 'success';

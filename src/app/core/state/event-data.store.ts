@@ -17,7 +17,6 @@ import {
   orderBy,
   query,
   runTransaction,
-  updateDoc,
   type Unsubscribe
 } from 'firebase/firestore';
 
@@ -27,6 +26,7 @@ import { DemoSeedService, type SeedResult } from '../firebase/demo-seed.service'
 import { OfflineMutationService } from '../sync/offline-mutation.service';
 import type {
   AttendeeTicket,
+  CheckInAuditLog,
   EventModel,
   ScanMethod,
   TicketOrder,
@@ -224,6 +224,11 @@ export class EventDataStore {
    * Admits an attendee: optimistically updates local state, then queues the write
    * through the offline outbox so it survives a dropped connection.
    *
+   * The outbox is the *only* writer of the admission. Writing the attendee document
+   * here as well would race the queued mutation: the flush transaction re-reads the
+   * document, would observe `checked_in` and reject the mutation as a duplicate,
+   * leaving the denormalised event counters permanently behind.
+   *
    * @param ticket Attendee to admit.
    * @param operatorId Operator recorded on the audit trail.
    * @param scanMethod How the pass was captured.
@@ -251,33 +256,24 @@ export class EventDataStore {
     });
 
     await this.outbox.queueCheckInMutation(eventId, ticket.id, operatorId, timestamp, scanMethod);
-
-    // When the transport is available the document is updated directly as well, so
-    // the dashboard reflects the admission immediately rather than after the next
-    // snapshot round trip. The outbox remains the durable record.
-    if (this.outbox.isOnline()) {
-      try {
-        await updateDoc(doc(this.firestore, FirestorePaths.attendee(eventId, ticket.id)), {
-          checkInStatus: 'checked_in',
-          checkedInAt: timestamp,
-          checkedInByUserId: operatorId,
-          updatedAt: timestamp
-        });
-      } catch {
-        // The queued mutation retries; local state already reflects the admission.
-      }
-    }
-
     return true;
   }
 
   /**
    * Reverses an admission (door operator correction).
    *
+   * Runs in a single transaction: the ticket returns to `confirmed`, the
+   * denormalised checked-in counter is decremented and an audit entry is written,
+   * so a reversal can never leave the event counters or the audit trail disagreeing
+   * with the ticket document.
+   *
    * @param ticket Attendee whose admission is reversed.
    * @returns `true` when the reversal was applied locally.
    */
-  public async reverseAdmission(ticket: AttendeeTicket): Promise<boolean> {
+  public async reverseAdmission(
+    ticket: AttendeeTicket,
+    operatorId = 'admission_reversal_operator'
+  ): Promise<boolean> {
     const eventId = this.activeEventIdValue;
     if (eventId === null || ticket.checkInStatus !== 'checked_in') {
       return false;
@@ -292,12 +288,52 @@ export class EventDataStore {
     });
 
     try {
-      await updateDoc(doc(this.firestore, FirestorePaths.attendee(eventId, ticket.id)), {
-        checkInStatus: 'confirmed',
-        checkedInAt: null,
-        checkedInByUserId: null,
-        updatedAt: timestamp
+      const attendeeRef = doc(this.firestore, FirestorePaths.attendee(eventId, ticket.id));
+      const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
+      const auditRef = doc(
+        this.firestore,
+        FirestorePaths.auditLog(eventId, `rev_${createIdentifier()}`)
+      );
+
+      await runTransaction(this.firestore, async (transaction) => {
+        const [attendeeSnapshot, eventSnapshot] = await Promise.all([
+          transaction.get(attendeeRef),
+          transaction.get(eventRef)
+        ]);
+
+        if (!attendeeSnapshot.exists()) {
+          throw new Error('ATTENDEE_NOT_FOUND');
+        }
+        if (attendeeSnapshot.data()['checkInStatus'] !== 'checked_in') {
+          throw new Error('TICKET_NOT_CHECKED_IN');
+        }
+
+        transaction.update(attendeeRef, {
+          checkInStatus: 'confirmed',
+          checkedInAt: null,
+          checkedInByUserId: null,
+          updatedAt: timestamp
+        });
+
+        if (eventSnapshot.exists()) {
+          const checkedIn = Number(eventSnapshot.data()['totalTicketsCheckedIn'] ?? 0);
+          transaction.update(eventRef, {
+            totalTicketsCheckedIn: Math.max(0, checkedIn - 1),
+            updatedAt: timestamp
+          });
+        }
+
+        const auditLog: Omit<CheckInAuditLog, 'id'> = {
+          attendeeId: ticket.id,
+          eventId,
+          timestamp,
+          operatorId,
+          scanMethod: 'manual_button',
+          wasOfflineCached: false
+        };
+        transaction.set(auditRef, auditLog);
       });
+
       return true;
     } catch (error: unknown) {
       this.errorMessageSignal.set(describeError(error));
@@ -481,4 +517,12 @@ function describeError(error: unknown): string {
     return error.message;
   }
   return typeof error === 'string' ? error : 'Unknown Firestore error';
+}
+
+/** Creates a unique id for audit documents, falling back when `randomUUID` is absent. */
+function createIdentifier(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }

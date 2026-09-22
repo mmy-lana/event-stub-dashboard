@@ -118,7 +118,7 @@ export type StatusFilter = 'all' | CheckInStatus;
       .search-input {
         width: 100%;
         min-height: var(--touch-target-min);
-        padding: 10px 36px 10px 34px;
+        padding: 10px 48px 10px 34px;
         border: 1px solid var(--color-border-strong);
         border-radius: var(--radius-md);
         background: var(--color-surface);

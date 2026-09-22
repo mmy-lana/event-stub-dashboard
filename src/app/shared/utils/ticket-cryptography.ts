@@ -7,10 +7,15 @@
  * TICKET_ID::STUB_NUMBER::HASH
  * ```
  *
- * where `HASH` is an FNV-1a digest of `TICKET_ID__STUB_NUMBER__EVENT_ID`. The
- * digest is a tamper-detection checksum, not a signature — it lets a kiosk reject
- * hand-typed or re-encoded passes without a network round trip, while the
- * authoritative admission decision still happens inside a Firestore transaction.
+ * where `HASH` is an FNV-1a digest of `TICKET_ID__STUB_NUMBER__EVENT_ID`, rendered as
+ * a fixed-width 8-character lower-case hex string (zero padded). The digest is a
+ * tamper-detection checksum, not a signature — it lets a kiosk reject hand-typed or
+ * re-encoded passes without a network round trip, while the authoritative admission
+ * decision still happens inside a Firestore transaction.
+ *
+ * {@link TicketSecurityUtility.generateVerifiableToken} and
+ * {@link TicketSecurityUtility.verifyPayload} must render the digest identically;
+ * both zero-pad, so legacy unpadded tokens still verify.
  *
  * Depends only on `VALIDATION_RULES` from the domain model.
  */
@@ -53,7 +58,9 @@ export class TicketSecurityUtility {
     eventId: string
   ): string {
     const payloadRaw = TicketSecurityUtility.buildHashInput(ticketId, stubNumber, eventId);
-    const hashFragment = TicketSecurityUtility.computeFnv1aHash(payloadRaw).toString(16);
+    const hashFragment = TicketSecurityUtility.computeFnv1aHash(payloadRaw)
+      .toString(16)
+      .padStart(8, '0');
     return `${ticketId}${VALIDATION_RULES.QR_HASH_SEPARATOR}${stubNumber}${
       VALIDATION_RULES.QR_HASH_SEPARATOR
     }${hashFragment}`;
@@ -111,8 +118,13 @@ export class TicketSecurityUtility {
   public static verifyPayload(payload: TicketTokenPayload, eventId: string): boolean {
     const expected = TicketSecurityUtility.computeFnv1aHash(
       TicketSecurityUtility.buildHashInput(payload.ticketId, payload.stubNumber, eventId)
-    ).toString(16);
-    return TicketSecurityUtility.constantTimeEquals(payload.hash.trim().toLowerCase(), expected);
+    )
+      .toString(16)
+      .padStart(8, '0');
+    return TicketSecurityUtility.constantTimeEquals(
+      payload.hash.trim().toLowerCase().padStart(8, '0'),
+      expected
+    );
   }
 
   /**

@@ -393,63 +393,19 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
       }
 
       @media (min-width: 768px) {
-        .checkout-banner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 12px;
-        border: 1px solid #bbf7d0;
-        border-radius: var(--radius-md);
-        background: var(--color-emerald-soft);
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--color-emerald-deep);
-      }
+        .page-header {
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+        }
 
-      .banner-close {
-        width: 28px;
-        height: 28px;
-        border: none;
-        border-radius: 50%;
-        background: rgba(5, 150, 105, 0.12);
-        color: var(--color-emerald-deep);
-        font-size: 16px;
-        line-height: 1;
-      }
-
-      .kpi-rail {
+        .kpi-rail {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
 
       @media (min-width: 1024px) {
-        .checkout-banner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 12px;
-        border: 1px solid #bbf7d0;
-        border-radius: var(--radius-md);
-        background: var(--color-emerald-soft);
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--color-emerald-deep);
-      }
-
-      .banner-close {
-        width: 28px;
-        height: 28px;
-        border: none;
-        border-radius: 50%;
-        background: rgba(5, 150, 105, 0.12);
-        color: var(--color-emerald-deep);
-        font-size: 16px;
-        line-height: 1;
-      }
-
-      .kpi-rail {
+        .kpi-rail {
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
       }

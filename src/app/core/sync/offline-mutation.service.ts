@@ -238,10 +238,15 @@ export class OfflineMutationService {
       const scanMethod = readScanMethod(item.payload['scanMethod']);
 
       const attendeeRef = doc(this.firestore, FirestorePaths.attendee(eventId, item.entityId));
+      const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
       const auditRef = doc(this.firestore, FirestorePaths.auditLog(eventId, createIdentifier()));
 
       await runTransaction(this.firestore, async (transaction) => {
-        const snapshot = await transaction.get(attendeeRef);
+        const [snapshot, eventSnapshot] = await Promise.all([
+          transaction.get(attendeeRef),
+          transaction.get(eventRef)
+        ]);
+
         if (!snapshot.exists()) {
           throw new Error(SYNC_ERRORS.attendeeNotFound);
         }
@@ -250,6 +255,13 @@ export class OfflineMutationService {
         const status = data['checkInStatus'];
 
         if (status === 'checked_in') {
+          // This exact admission is already on the server: the previous attempt
+          // committed but the dequeue did not survive. Treating it as success keeps
+          // a retry idempotent instead of burning the mutation as a conflict, and
+          // avoids incrementing the counters a second time.
+          if (data['checkedInAt'] === checkedInAt && data['checkedInByUserId'] === operatorId) {
+            return;
+          }
           throw new Error(SYNC_ERRORS.alreadyCheckedIn);
         }
         if (status === 'cancelled') {
@@ -262,6 +274,14 @@ export class OfflineMutationService {
           checkedInByUserId: operatorId,
           updatedAt: new Date().toISOString()
         });
+
+        if (eventSnapshot.exists()) {
+          const currentCheckedIn = Number(eventSnapshot.data()['totalTicketsCheckedIn'] ?? 0);
+          transaction.update(eventRef, {
+            totalTicketsCheckedIn: currentCheckedIn + 1,
+            updatedAt: new Date().toISOString()
+          });
+        }
 
         const auditLog: Omit<CheckInAuditLog, 'id'> = {
           attendeeId: item.entityId,

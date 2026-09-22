@@ -72,7 +72,10 @@ const DUPLICATE_SUPPRESSION_MS = 2500;
 
           @case ('denied') {
             <div class="placeholder" role="alert">
-              <p class="placeholder-icon" aria-hidden="true">🚫</p>
+              <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+              </svg>
               <p class="placeholder-title">Camera permission denied</p>
               <p class="placeholder-body">
                 Allow camera access for this site in your browser settings, then start the scanner
@@ -84,7 +87,14 @@ const DUPLICATE_SUPPRESSION_MS = 2500;
 
           @case ('unsupported') {
             <div class="placeholder" role="alert">
-              <p class="placeholder-icon" aria-hidden="true">⌨</p>
+              <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <line x1="6" y1="8" x2="6" y2="8" />
+                <line x1="10" y1="8" x2="10" y2="8" />
+                <line x1="14" y1="8" x2="14" y2="8" />
+                <line x1="18" y1="8" x2="18" y2="8" />
+                <line x1="6" y1="12" x2="18" y2="12" />
+              </svg>
               <p class="placeholder-title">Camera not available</p>
               <p class="placeholder-body">
                 {{ unsupportedReason() }} Use a hardware barcode scanner or the manual entry pad
@@ -95,7 +105,11 @@ const DUPLICATE_SUPPRESSION_MS = 2500;
 
           @case ('error') {
             <div class="placeholder" role="alert">
-              <p class="placeholder-icon" aria-hidden="true">⚠</p>
+              <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
               <p class="placeholder-title">Scanner error</p>
               <p class="placeholder-body">{{ errorDetail() }}</p>
               <app-button variant="outline" (pressed)="start()">Retry</app-button>
@@ -104,7 +118,10 @@ const DUPLICATE_SUPPRESSION_MS = 2500;
 
           @default {
             <div class="placeholder">
-              <p class="placeholder-icon" aria-hidden="true">📷</p>
+              <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
               <p class="placeholder-title">Camera is inactive</p>
               <p class="placeholder-body">
                 Start the scanner to admit attendees by scanning their tear-off pass.
@@ -260,8 +277,9 @@ const DUPLICATE_SUPPRESSION_MS = 2500;
         color: #ffffff;
       }
 
-      .placeholder-icon {
-        font-size: 30px;
+      .placeholder-svg {
+        width: 32px;
+        height: 32px;
       }
 
       .placeholder-title {

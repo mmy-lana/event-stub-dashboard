@@ -118,15 +118,15 @@ function readPort(value: string | boolean | undefined, fallback: number, label: 
 /**
  * Resolves the Firebase client configuration from the build-time environment.
  *
- * Emulator mode is resolved in this order:
+ * Emulator mode is opt-in and never inferred:
  *
- * 1. `VITE_USE_FIREBASE_EMULATOR` when it is set explicitly (`true`/`false`).
- * 2. Otherwise it is inferred: a build without `VITE_FIREBASE_API_KEY` and
- *    `VITE_FIREBASE_APP_ID` is treated as a local/demo build and runs against the
- *    Docker emulator suite, which is what `docker-compose.yml` provides.
+ * 1. `VITE_USE_FIREBASE_EMULATOR=true` runs against the local emulator suite.
+ * 2. Anything else is treated as a cloud build and must carry
+ *    `VITE_FIREBASE_API_KEY` and `VITE_FIREBASE_APP_ID`.
  *
- * An explicit `VITE_USE_FIREBASE_EMULATOR=false` without credentials is a
- * misconfiguration and fails fast.
+ * An absent flag with no credentials is a misconfiguration and fails fast. Silently
+ * redirecting a credential-less production build to `127.0.0.1` would make the app
+ * appear to work while writing every registration to a laptop that is not there.
  *
  * @param env Raw environment bag; defaults to `import.meta.env`.
  * @returns A frozen, fully typed configuration object.
@@ -144,20 +144,17 @@ export function resolveFirebaseEnvironmentConfig(
   const hasCredentials = apiKey !== undefined && appId !== undefined;
 
   const useEmulator =
-    explicitEmulatorFlag === undefined ? !hasCredentials : readBoolean(explicitEmulatorFlag, false);
+    explicitEmulatorFlag !== undefined ? readBoolean(explicitEmulatorFlag, false) : false;
 
   if (!useEmulator && !hasCredentials) {
     throw new FirebaseEnvironmentError(
       'Production Firebase configuration is incomplete: VITE_FIREBASE_API_KEY and ' +
-        'VITE_FIREBASE_APP_ID are required when VITE_USE_FIREBASE_EMULATOR is disabled.'
+        'VITE_FIREBASE_APP_ID are required in production environments. Set ' +
+        'VITE_USE_FIREBASE_EMULATOR=true to run against the local emulator suite.'
     );
   }
 
-  const warning =
-    explicitEmulatorFlag === undefined && useEmulator
-      ? 'No Firebase credentials found; using the local emulator suite. ' +
-        'Copy .env.example to .env and set VITE_USE_FIREBASE_EMULATOR=false for a cloud build.'
-      : null;
+  const warning: string | null = null;
 
   const emulatorHost = readString(env['VITE_FIREBASE_EMULATOR_HOST']) ?? DEFAULT_EMULATOR_HOST;
 

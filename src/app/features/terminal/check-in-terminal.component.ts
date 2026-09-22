@@ -65,7 +65,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
           <div class="decision-card" [class]="'state-' + store.verificationState()" aria-live="assertive">
             @switch (store.verificationState()) {
               @case ('idle') {
-                <p class="decision-icon" aria-hidden="true">🎫</p>
+                <svg class="decision-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
                 <p class="decision-headline">Awaiting pass</p>
                 <p class="decision-detail">
                   Scan a QR code or type the stub reference printed under the barcode.
@@ -79,7 +82,9 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
               }
 
               @case ('success') {
-                <p class="decision-icon" aria-hidden="true">✓</p>
+                <svg class="decision-svg icon-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
                 <p class="decision-headline">Admitted</p>
                 @if (store.lastScannedTicket(); as ticket) {
                   <p class="decision-name">{{ ticket.firstName }} {{ ticket.lastName }}</p>
@@ -105,7 +110,11 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
               }
 
               @case ('already_checked_in') {
-                <p class="decision-icon" aria-hidden="true">⚠</p>
+                <svg class="decision-svg icon-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
                 <p class="decision-headline">Already admitted</p>
                 @if (store.lastScannedTicket(); as ticket) {
                   <p class="decision-name">{{ ticket.firstName }} {{ ticket.lastName }}</p>
@@ -117,7 +126,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
               }
 
               @case ('cancelled') {
-                <p class="decision-icon" aria-hidden="true">⛔</p>
+                <svg class="decision-svg icon-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
                 <p class="decision-headline">Ticket cancelled</p>
                 <p class="decision-detail">
                   This pass was cancelled or refunded. Direct the attendee to the help desk.
@@ -125,7 +137,11 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
               }
 
               @case ('tampered') {
-                <p class="decision-icon" aria-hidden="true">🚫</p>
+                <svg class="decision-svg icon-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
                 <p class="decision-headline">Verification failed</p>
                 <p class="decision-detail">
                   The pass digest does not match this event. Do not admit.
@@ -133,7 +149,11 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
               }
 
               @default {
-                <p class="decision-icon" aria-hidden="true">❓</p>
+                <svg class="decision-svg icon-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
                 <p class="decision-headline">Pass not found</p>
                 <p class="decision-detail">{{ store.lastMessage() }}</p>
               }
@@ -289,9 +309,21 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         background: var(--color-danger-soft);
       }
 
-      .decision-icon {
-        font-size: 38px;
-        line-height: 1;
+      .decision-svg {
+        width: 40px;
+        height: 40px;
+      }
+
+      .decision-svg.icon-success {
+        color: var(--color-emerald-deep);
+      }
+
+      .decision-svg.icon-warning {
+        color: #b45309;
+      }
+
+      .decision-svg.icon-danger {
+        color: var(--color-danger);
       }
 
       .decision-headline {
@@ -376,8 +408,14 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
 
       .counter-row {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
+      }
+
+      @media (min-width: 640px) {
+        .counter-row {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
       }
 
       .counter {

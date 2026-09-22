@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { doc, runTransaction, writeBatch } from 'firebase/firestore';
+import { doc, runTransaction, type DocumentReference } from 'firebase/firestore';
 
 import { FIRESTORE_DB } from '../../core/firebase/firebase.config';
 import { FirestorePaths } from '../../core/firebase/firestore-paths';
@@ -583,7 +583,7 @@ export class RsvpCheckoutDialogComponent {
     const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
 
     try {
-      const reservedTiers = await runTransaction(this.firestore, async (transaction) => {
+      const reservation = await runTransaction(this.firestore, async (transaction) => {
         const eventSnapshot = await transaction.get(eventRef);
         if (!eventSnapshot.exists()) {
           throw new Error('EVENT_NOT_FOUND');
@@ -591,6 +591,13 @@ export class RsvpCheckoutDialogComponent {
 
         const tiers: TicketTier[] = [];
         let issuedTotal = 0;
+
+        // Phase 1 — reads only. Firestore rejects a transaction that reads after it
+        // has issued its first write ("all reads must be executed before all
+        // writes"), so every tier is read and validated before any quota update is
+        // queued. Interleaving the two fails every multi-tier order.
+        const reservations: { tierRef: DocumentReference; tier: TicketTier; quantity: number }[] =
+          [];
 
         for (const [tierId, quantity] of requested) {
           const tierRef = doc(this.firestore, FirestorePaths.ticketTier(eventId, tierId));
@@ -610,58 +617,65 @@ export class RsvpCheckoutDialogComponent {
             throw new Error(`SOLD_OUT:${tier.name}`);
           }
 
-          transaction.update(tierRef, { availableQuota: tier.availableQuota - quantity });
-          tiers.push({ ...tier, availableQuota: tier.availableQuota - quantity });
+          reservations.push({ tierRef, tier, quantity });
           issuedTotal += quantity;
         }
 
         const currentIssued = Number(eventSnapshot.data()['totalTicketsIssued'] ?? 0);
+
+        // Phase 2 — writes only.
+        for (const { tierRef, tier, quantity } of reservations) {
+          const remainingQuota = tier.availableQuota - quantity;
+          transaction.update(tierRef, { availableQuota: remainingQuota });
+          tiers.push({ ...tier, availableQuota: remainingQuota });
+        }
+
         transaction.update(eventRef, {
           totalTicketsIssued: currentIssued + issuedTotal,
           updatedAt: now
         });
 
-        return tiers;
-      });
+        const lineItems: OrderLineItem[] = tiers.map((tier) => {
+          const quantity = requested.find(([tierId]) => tierId === tier.id)?.[1] ?? 0;
+          return {
+            ticketTierId: tier.id,
+            tierName: tier.name,
+            quantity,
+            unitPriceCents: tier.priceCents,
+            subtotalCents: tier.priceCents * quantity
+          };
+        });
 
-      const lineItems: OrderLineItem[] = reservedTiers.map((tier) => {
-        const quantity = requested.find(([tierId]) => tierId === tier.id)?.[1] ?? 0;
-        return {
-          ticketTierId: tier.id,
-          tierName: tier.name,
-          quantity,
-          unitPriceCents: tier.priceCents,
-          subtotalCents: tier.priceCents * quantity
+        const subtotalCents = lineItems.reduce((total, item) => total + item.subtotalCents, 0);
+
+        const order: TicketOrder = {
+          id: orderId,
+          eventId,
+          orderReference: `SD-${new Date().getFullYear()}-${orderId.slice(-6).toUpperCase()}`,
+          customerFirstName: this.firstName().trim(),
+          customerLastName: this.lastName().trim(),
+          customerEmail: this.email().trim().toLowerCase(),
+          subtotalCents,
+          discountCents: 0,
+          totalCents: subtotalCents,
+          currency: this.currency(),
+          paymentStatus: subtotalCents === 0 ? 'free_rsvp' : 'completed',
+          paymentMethod: subtotalCents === 0 ? 'free' : 'stripe_card',
+          lineItems,
+          createdAt: now
         };
+
+        const generatedAttendees = this.buildAttendeeTickets(eventId, orderId, tiers, requested, now);
+
+        transaction.set(doc(this.firestore, FirestorePaths.order(eventId, orderId)), order);
+        for (const attendee of generatedAttendees) {
+          transaction.set(doc(this.firestore, FirestorePaths.attendee(eventId, attendee.id)), attendee);
+        }
+
+        return { order, attendees: generatedAttendees };
       });
 
-      const subtotalCents = lineItems.reduce((total, item) => total + item.subtotalCents, 0);
-
-      const order: TicketOrder = {
-        id: orderId,
-        eventId,
-        orderReference: `SD-${new Date().getFullYear()}-${orderId.slice(-6).toUpperCase()}`,
-        customerFirstName: this.firstName().trim(),
-        customerLastName: this.lastName().trim(),
-        customerEmail: this.email().trim().toLowerCase(),
-        subtotalCents,
-        discountCents: 0,
-        totalCents: subtotalCents,
-        currency: this.currency(),
-        paymentStatus: subtotalCents === 0 ? 'free_rsvp' : 'completed',
-        paymentMethod: subtotalCents === 0 ? 'free' : 'stripe_card',
-        lineItems,
-        createdAt: now
-      };
-
-      const attendees = this.buildAttendeeTickets(eventId, orderId, reservedTiers, requested, now);
-
-      const batch = writeBatch(this.firestore);
-      batch.set(doc(this.firestore, FirestorePaths.order(eventId, orderId)), order);
-      for (const attendee of attendees) {
-        batch.set(doc(this.firestore, FirestorePaths.attendee(eventId, attendee.id)), attendee);
-      }
-      await batch.commit();
+      const { order, attendees } = reservation;
 
       return {
         status: 'reserved',
