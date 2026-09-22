@@ -32,6 +32,12 @@ services:
     # Exec-form command: the emulator flags must stay on a single shell line, so a
     # folded YAML scalar would break them apart. A headless JRE is required by the
     # Firestore emulator, and the Alpine base image does not ship one.
+    #
+    # `--config firebase.emulator.json` is load-bearing: the default firebase.json
+    # names the hardened production rule set, which denies every write until the app
+    # ships a sign-in flow, so the emulator opts into the open dev rules explicitly.
+    # Recreate the container (`pnpm emulator:down && pnpm emulator:up`) after
+    # changing this line.
     command:
       - sh
       - -c
@@ -39,6 +45,7 @@ services:
         apk add --no-cache openjdk21-jre-headless >/dev/null &&
         npm install -g firebase-tools --silent &&
         firebase emulators:start --project event-rsvp-ticketing
+        --config firebase.emulator.json
         --import=/app/emulator-data --export-on-exit=/app/emulator-data
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "8080"]

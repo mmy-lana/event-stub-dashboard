@@ -651,6 +651,7 @@ export class RsvpCheckoutDialogComponent {
 
         const subtotalCents = lineItems.reduce((total, item) => total + item.subtotalCents, 0);
 
+        const isFreeOrder = subtotalCents === 0;
         const order: TicketOrder = {
           id: orderId,
           eventId,
@@ -662,13 +663,20 @@ export class RsvpCheckoutDialogComponent {
           discountCents: 0,
           totalCents: subtotalCents,
           currency: this.currency(),
-          paymentStatus: subtotalCents === 0 ? 'free_rsvp' : 'pending',
-          paymentMethod: subtotalCents === 0 ? 'free' : 'stripe_card',
+          paymentStatus: isFreeOrder ? 'free_rsvp' : 'pending',
+          paymentMethod: isFreeOrder ? 'free' : 'stripe_card',
           lineItems,
           createdAt: now
         };
 
-        const generatedAttendees = this.buildAttendeeTickets(eventId, orderId, tiers, requested, now);
+        const generatedAttendees = this.buildAttendeeTickets(
+          eventId,
+          orderId,
+          tiers,
+          requested,
+          now,
+          order.paymentStatus
+        );
 
         transaction.set(doc(this.firestore, FirestorePaths.order(eventId, orderId)), order);
         for (const attendee of generatedAttendees) {
@@ -719,16 +727,26 @@ export class RsvpCheckoutDialogComponent {
     }
   }
 
-  /** Builds one attendee ticket per reserved seat. */
+  /**
+   * Builds one attendee ticket per reserved seat.
+   *
+   * Admission is gated on settlement: a seat whose order is not yet paid is issued
+   * as `cancelled` so the door kiosk refuses it, with a note explaining why. Only
+   * settled orders (`completed`/`free_rsvp`) produce admittable passes.
+   *
+   * @param paymentStatus Settlement state of the owning order.
+   */
   private buildAttendeeTickets(
     eventId: string,
     orderId: string,
     tiers: readonly TicketTier[],
     requested: readonly (readonly [string, number])[],
-    timestamp: string
+    timestamp: string,
+    paymentStatus: TicketOrder['paymentStatus'] = 'completed'
   ): readonly AttendeeTicket[] {
     const eventPrefix = (this.event()?.slug ?? 'evt').slice(0, 3).toUpperCase() || 'EVT';
     const tickets: AttendeeTicket[] = [];
+    const isPaymentSettled = paymentStatus === 'completed' || paymentStatus === 'free_rsvp';
 
     for (const tier of tiers) {
       const quantity = requested.find(([tierId]) => tierId === tier.id)?.[1] ?? 0;
@@ -748,7 +766,7 @@ export class RsvpCheckoutDialogComponent {
           email: this.email().trim().toLowerCase(),
           phoneNumber: this.phoneNumber().trim(),
           companyOrAffiliation: this.company().trim(),
-          checkInStatus: 'confirmed',
+          checkInStatus: isPaymentSettled ? 'confirmed' : 'cancelled',
           checkedInAt: null,
           checkedInByUserId: null,
           qrVerificationSecret: TicketSecurityUtility.generateVerifiableToken(
@@ -764,6 +782,7 @@ export class RsvpCheckoutDialogComponent {
           ...(this.seatAssignment().trim().length === 0
             ? {}
             : { seatAssignment: this.seatAssignment().trim() }),
+          ...(isPaymentSettled ? {} : { notes: 'Awaiting payment confirmation' }),
           createdAt: timestamp,
           updatedAt: timestamp
         });

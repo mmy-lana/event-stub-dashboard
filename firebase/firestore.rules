@@ -8,16 +8,14 @@ rules_version = '2';
 // ticket secret or a kiosk operator role and makes the door audit trail
 // append-only lives in `firestore.production.rules`.
 //
-// `firebase.json` deliberately keeps pointing here: the emulator loads whatever
-// that file names, and the production set denies every write until an auth flow
-// exists, which would break check-in, checkout and seeding locally.
+// This file is NOT the default. `firebase.json` names the production set, so a
+// bare `firebase deploy` can never ship these open rules to a real project. The
+// emulator opts into them explicitly through `firebase.emulator.json`, which
+// docker-compose passes as `firebase emulators:start --config`.
 //
-// Production deploys opt into the hardened set explicitly:
-//
-//   pnpm deploy:rules     # firebase.production.json -> firestore.production.rules
-//
-// Flip `firebase.json` itself over only once the app ships an organizer/kiosk
-// sign-in flow.
+// Starting the suite without that flag therefore loads the production rules and
+// every write fails with permission-denied. Use `pnpm emulator:up`, or pass
+// `--config firebase/firebase.emulator.json` when running firebase-tools by hand.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /events/{eventId} {
