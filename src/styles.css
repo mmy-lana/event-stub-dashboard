@@ -1,19 +1,213 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   StubDeck design tokens
+   --------------------------------------------------------------------------
+   Single source of truth for colour, spacing, radius, elevation and touch
+   ergonomics. Every component styles itself through these custom properties so
+   the Modern-Eventbrite palette and the skeuomorphic ticket-stub treatment stay
+   consistent across the dashboard, the roster and the kiosk terminal.
+   ========================================================================== */
+
 @theme {
-  --color-brand-coral: #FF5A36;
-  --color-brand-emerald: #10B981;
-  --color-surface-charcoal: #1E222B;
+  --color-brand-coral: #ff5a36;
+  --color-brand-emerald: #10b981;
+  --color-surface-charcoal: #1e222b;
 }
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Brand ------------------------------------------------------------------ */
+  --color-coral: #ff5a36;
+  --color-coral-strong: #e8431f;
+  --color-coral-soft: #fff1ee;
+  --color-coral-ring: rgba(255, 90, 54, 0.28);
+
+  /* Verified / success ----------------------------------------------------- */
+  --color-emerald: #10b981;
+  --color-emerald-deep: #059669;
+  --color-emerald-soft: #ecfdf5;
+  --color-emerald-ring: rgba(16, 185, 129, 0.28);
+
+  /* Status accents --------------------------------------------------------- */
+  --color-amber: #f59e0b;
+  --color-amber-soft: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-info: #2563eb;
+  --color-info-soft: #eff6ff;
+  --color-violet: #7c3aed;
+  --color-violet-soft: #f5f3ff;
+
+  /* Neutrals -------------------------------------------------------------- */
+  --color-ink: #0f172a;
+  --color-charcoal: #1e222b;
+  --color-slate-800: #1e293b;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748b;
+  --color-muted: #6b7280;
+  --color-muted-soft: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-canvas: #f8fafc;
+  --color-ticket-canvas: #f9fafb;
+  --color-sub-ticket: #fafafa;
+  --color-surface: #ffffff;
+
+  /* Typography ------------------------------------------------------------ */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-weight-black: 900;
+
+  /* Radius ---------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* Elevation ------------------------------------------------------------- */
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-raised: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-overlay: 0 24px 48px -12px rgba(15, 23, 42, 0.28);
+
+  /* Layout ---------------------------------------------------------------- */
+  --shell-nav-height: 60px;
+  --dock-height: 64px;
+  --content-max-width: 1440px;
+
+  /* Touch ergonomics: every interactive control honours a 48px hit box. */
+  --touch-target-min: 48px;
+  --control-height-sm: 36px;
+  --control-height-md: 44px;
+  --control-height-lg: 52px;
+
+  /* Motion ---------------------------------------------------------------- */
+  --transition-fast: 120ms ease-in-out;
+  --transition-base: 180ms ease-in-out;
+
+  font-family: var(--font-sans);
   color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
 }
 
 body {
-  margin: 0;
-  background-color: #F8FAFC;
-  color: #0F172A;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
   min-height: 100vh;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Visible, high-contrast keyboard focus for every interactive element. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-coral-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Respect reduced-motion preferences across every animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Horizontal scrollers (roster tables, KPI rails) hide their chrome but stay
+   keyboard and touch scrollable. */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* ==========================================================================
+   Print: tear-off passes are printed from the ticket detail sheet.
+   ========================================================================== */
+
+@media print {
+  body {
+    background: var(--color-surface);
+  }
+
+  .no-print,
+  app-dashboard-shell .top-nav,
+  app-dashboard-shell .mobile-bottom-dock {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+}
+
+.print-only {
+  display: none;
 }

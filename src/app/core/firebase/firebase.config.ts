@@ -120,6 +120,11 @@ export function provideFirebaseApp(config: FirebaseEnvironmentConfig): FirebaseI
 export function provideTicketingFirebase(
   config: FirebaseEnvironmentConfig = resolveFirebaseEnvironmentConfig()
 ): EnvironmentProviders {
+  if (config.warning !== null) {
+    // Surfaced once at bootstrap so a misconfigured deployment is obvious.
+    console.warn(`[StubDeck] ${config.warning}`);
+  }
+
   const instances = provideFirebaseApp(config);
 
   return makeEnvironmentProviders([

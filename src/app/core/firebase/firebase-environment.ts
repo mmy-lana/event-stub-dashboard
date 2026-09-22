@@ -18,6 +18,12 @@ export interface FirebaseEnvironmentConfig {
   readonly useEmulator: boolean;
   readonly emulatorHost: string;
   readonly emulatorPorts: EmulatorPorts;
+  /**
+   * Non-fatal configuration note (for example "running on the emulator because
+   * no Firebase credentials were provided"). `null` when the configuration is
+   * explicit and complete.
+   */
+  readonly warning: string | null;
 }
 
 /** TCP ports exposed by the Docker based Firebase Emulator Suite. */
@@ -112,29 +118,46 @@ function readPort(value: string | boolean | undefined, fallback: number, label: 
 /**
  * Resolves the Firebase client configuration from the build-time environment.
  *
- * Emulator mode is detected from `VITE_USE_FIREBASE_EMULATOR`; when a local dev
- * build leaves the Firebase keys unset the demo project credentials are used so
- * the emulator suite (which never validates API keys) still boots.
+ * Emulator mode is resolved in this order:
+ *
+ * 1. `VITE_USE_FIREBASE_EMULATOR` when it is set explicitly (`true`/`false`).
+ * 2. Otherwise it is inferred: a build without `VITE_FIREBASE_API_KEY` and
+ *    `VITE_FIREBASE_APP_ID` is treated as a local/demo build and runs against the
+ *    Docker emulator suite, which is what `docker-compose.yml` provides.
+ *
+ * An explicit `VITE_USE_FIREBASE_EMULATOR=false` without credentials is a
+ * misconfiguration and fails fast.
  *
  * @param env Raw environment bag; defaults to `import.meta.env`.
  * @returns A frozen, fully typed configuration object.
- * @throws {FirebaseEnvironmentError} When a provided value is malformed.
+ * @throws {FirebaseEnvironmentError} When a provided value is malformed, or when a
+ *   production configuration is incomplete.
  */
 export function resolveFirebaseEnvironmentConfig(
   env: FirebaseEnvironmentSource = import.meta.env
 ): FirebaseEnvironmentConfig {
-  const useEmulator = readBoolean(env['VITE_USE_FIREBASE_EMULATOR'], false);
+  const explicitEmulatorFlag = readString(env['VITE_USE_FIREBASE_EMULATOR']);
   const projectId = readString(env['VITE_FIREBASE_PROJECT_ID']) ?? DEFAULT_FIREBASE_PROJECT_ID;
 
   const apiKey = readString(env['VITE_FIREBASE_API_KEY']);
   const appId = readString(env['VITE_FIREBASE_APP_ID']);
+  const hasCredentials = apiKey !== undefined && appId !== undefined;
 
-  if (!useEmulator && (apiKey === undefined || appId === undefined)) {
+  const useEmulator =
+    explicitEmulatorFlag === undefined ? !hasCredentials : readBoolean(explicitEmulatorFlag, false);
+
+  if (!useEmulator && !hasCredentials) {
     throw new FirebaseEnvironmentError(
       'Production Firebase configuration is incomplete: VITE_FIREBASE_API_KEY and ' +
         'VITE_FIREBASE_APP_ID are required when VITE_USE_FIREBASE_EMULATOR is disabled.'
     );
   }
+
+  const warning =
+    explicitEmulatorFlag === undefined && useEmulator
+      ? 'No Firebase credentials found; using the local emulator suite. ' +
+        'Copy .env.example to .env and set VITE_USE_FIREBASE_EMULATOR=false for a cloud build.'
+      : null;
 
   const emulatorHost = readString(env['VITE_FIREBASE_EMULATOR_HOST']) ?? DEFAULT_EMULATOR_HOST;
 
@@ -165,7 +188,8 @@ export function resolveFirebaseEnvironmentConfig(
     appId: appId ?? '1:123456789:web:abcdef',
     useEmulator,
     emulatorHost,
-    emulatorPorts: Object.freeze(emulatorPorts)
+    emulatorPorts: Object.freeze(emulatorPorts),
+    warning
   });
 }
 
