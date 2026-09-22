@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Firestore rules for the local emulator suite.
+//
+// Emulator baseline: the dashboard demo runs without an organizer sign-in flow,
+// so every collection is readable/writable from the client. Production
+// hardening (organizer-scoped reads on `orders`/revenue, attendee writes limited
+// to a matching ticket secret or a kiosk operator role, refund cascade locking)
+// is implemented in the Phase 5 security pass described in plan.md §5.4.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /events/{eventId} {
+      allow read, write: if true;
+
+      match /ticketTiers/{tierId} {
+        allow read, write: if true;
+      }
+
+      match /attendees/{attendeeId} {
+        allow read, write: if true;
+      }
+
+      match /orders/{orderId} {
+        allow read, write: if true;
+      }
+
+      match /audit_logs/{auditLogId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

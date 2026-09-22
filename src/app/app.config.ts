@@ -1,52 +1,24 @@
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
+
 import { routes } from './app.routes';
-import {
-  FIREBASE_CONFIG,
-  FIREBASE_APP,
-  FIRESTORE_DB,
-  FIREBASE_AUTH,
-  provideFirebaseApp,
-  FirebaseEnvironmentConfig
-} from './core/firebase/firebase.config';
+import { provideTicketingFirebase } from './core/firebase/firebase.config';
+import { resolveFirebaseEnvironmentConfig } from './core/firebase/firebase-environment';
 
-const environmentFirebaseConfig: FirebaseEnvironmentConfig = {
-  apiKey: 'demo-api-key',
-  authDomain: 'event-rsvp-ticketing.firebaseapp.com',
-  projectId: 'event-rsvp-ticketing',
-  storageBucket: 'event-rsvp-ticketing.appspot.com',
-  messagingSenderId: '123456789',
-  appId: '1:123456789:web:abcdef',
-  useEmulator: true,
-  emulatorHost: '127.0.0.1',
-  emulatorPorts: {
-    firestore: 8080,
-    auth: 9099,
-    storage: 9199
-  }
-};
-
-const instances = provideFirebaseApp(environmentFirebaseConfig);
-
+/**
+ * Application bootstrap configuration.
+ *
+ * Firebase is initialized exactly once through `provideTicketingFirebase()`,
+ * which registers the app, Firestore, Auth and Storage handles as injectable
+ * tokens (see `core/firebase/firebase.config.ts`).
+ */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
-    {
-      provide: FIREBASE_CONFIG,
-      useValue: environmentFirebaseConfig
-    },
-    {
-      provide: FIREBASE_APP,
-      useValue: instances.app
-    },
-    {
-      provide: FIRESTORE_DB,
-      useValue: instances.firestore
-    },
-    {
-      provide: FIREBASE_AUTH,
-      useValue: instances.auth
-    }
+    provideRouter(
+      routes,
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' })
+    ),
+    provideTicketingFirebase(resolveFirebaseEnvironmentConfig())
   ]
 };

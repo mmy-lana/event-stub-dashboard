@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "emulator:up": "docker compose up -d firebase-emulator",
+    "emulator:down": "docker compose down",
+    "emulator:logs": "docker compose logs -f firebase-emulator"
   },
   "dependencies": {
     "@angular/common": "latest",
@@ -21,11 +25,13 @@
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "latest",
+    "@angular/build": "^22.1.8",
+    "@angular/compiler-cli": "^22.1.7",
     "@tailwindcss/vite": "latest",
     "@types/node": "latest",
     "npm-check-updates": "latest",
     "tailwindcss": "latest",
-    "typescript": "latest",
+    "typescript": "^6.0.3",
     "vite": "latest"
   }
 }

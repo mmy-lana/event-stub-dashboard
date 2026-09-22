@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Cloud Storage rules for event banner artwork.
+//
+// Emulator baseline: banners are uploaded and read without an organizer claim.
+// Production hardening (organizer-only writes, 5 MB image-only uploads, public
+// reads scoped to `banners/`) lands with the Phase 5 security pass.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

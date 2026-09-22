@@ -1,17 +1,36 @@
+# Local Firebase Emulator Suite for the Event RSVP & Ticketing Dashboard.
+#
+#   pnpm emulator:up     # start Firestore (8080), Auth (9099), Storage (9199), UI (4000)
+#   pnpm emulator:logs   # follow emulator output
+#   pnpm emulator:down   # stop the suite
+#
+# Emulator data is imported from / exported to ./firebase-data, so a kiosk demo
+# survives `docker compose down`. The emulator rules and indexes live in
+# ./firebase/firebase.json.
 services:
   firebase-emulator:
     image: node:20-alpine
     container_name: ticketing_firebase_emulator
     working_dir: /app
+    restart: unless-stopped
     volumes:
+      - ./firebase:/app
       - ./firebase-data:/app/emulator-data
     ports:
-      - "4000:4000"
-      - "8080:8080"
-      - "9099:9099"
-      - "9199:9199"
+      - "4000:4000"   # Firebase Emulator UI
+      - "8080:8080"   # Cloud Firestore Emulator
+      - "9099:9099"   # Firebase Authentication Emulator
+      - "9199:9199"   # Cloud Storage Emulator
     environment:
       - FIREBASE_PROJECT=event-rsvp-ticketing
     command: >
       sh -c "npm install -g firebase-tools &&
-             firebase emulators:start --project event-rsvp-ticketing --import=/app/emulator-data --export-on-exit=/app/emulator-data"
+             firebase emulators:start
+               --project event-rsvp-ticketing
+               --import=/app/emulator-data
+               --export-on-exit=/app/emulator-data"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
