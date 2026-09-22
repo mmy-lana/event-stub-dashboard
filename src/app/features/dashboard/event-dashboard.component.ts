@@ -35,7 +35,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
     <div class="page">
       @if (store.isEmpty() && !store.isLive()) {
         <section class="empty-state" aria-labelledby="empty-heading">
-          <p class="empty-icon" aria-hidden="true">🎟</p>
+          <svg class="empty-state-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
           <h1 id="empty-heading" class="empty-title">No event data yet</h1>
           <p class="empty-body">
             This project has no events in Firestore. Load the demo dataset to explore the dashboard,
@@ -77,11 +80,11 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
           </div>
 
           <div class="header-actions">
-            <app-button variant="coral" icon="+" (pressed)="openCheckout()">New RSVP</app-button>
+            <app-button variant="coral" (pressed)="openCheckout()">New RSVP</app-button>
             <a class="action-link" routerLink="/terminal">
-              <app-button variant="neutral" icon="📷">Open check-in terminal</app-button>
+              <app-button variant="neutral">Open check-in terminal</app-button>
             </a>
-            <app-button variant="outline" icon="🖨" [disabled]="!hasAdmissions()" (pressed)="printLatestPass()">
+            <app-button variant="outline" [disabled]="!hasAdmissions()" (pressed)="printLatestPass()">
               Print last pass
             </app-button>
           </div>
@@ -270,8 +273,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         border-radius: var(--radius-xl);
       }
 
-      .empty-icon {
-        font-size: 40px;
+      .empty-state-svg {
+        width: 40px;
+        height: 40px;
+        color: var(--color-muted-soft);
       }
 
       .empty-title {

@@ -39,7 +39,6 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         <div class="header-actions">
           <app-button
             variant="coral"
-            icon="✓"
             [disabled]="selectableForCheckIn().length === 0"
             [loading]="isBatching()"
             (pressed)="markSelected()">
@@ -47,12 +46,11 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
           </app-button>
           <app-button
             variant="outline"
-            icon="↺"
             [disabled]="selectedIds().length === 0"
             (pressed)="reverseSelected()">
             Reverse admission
           </app-button>
-          <app-button variant="outline" icon="⇩" (pressed)="exportCsv()">Export CSV</app-button>
+          <app-button variant="outline" (pressed)="exportCsv()">Export CSV</app-button>
         </div>
       </header>
 
@@ -79,7 +77,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
 
         @if (pageAttendees().length === 0) {
           <div class="empty-state">
-            <p class="empty-icon" aria-hidden="true">🔍</p>
+            <svg class="empty-state-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             <p class="empty-title">No attendees match these filters</p>
             <p class="empty-body">
               Adjust the search term or clear the tier and status filters to see more of the roster.
@@ -200,7 +201,7 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         </dl>
 
         <div class="drawer-actions">
-          <app-button variant="neutral" icon="🖨" (pressed)="printPass()">Print pass</app-button>
+          <app-button variant="neutral" (pressed)="printPass()">Print pass</app-button>
           <app-button variant="outline" (pressed)="closeDetails()">Close</app-button>
         </div>
       </aside>
@@ -396,8 +397,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         text-align: center;
       }
 
-      .empty-icon {
-        font-size: 32px;
+      .empty-state-svg {
+        width: 32px;
+        height: 32px;
+        color: var(--color-muted-soft);
       }
 
       .empty-title {

@@ -65,7 +65,7 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
           <app-button variant="neutral" (pressed)="recordInteraction('neutral')">Neutral</app-button>
           <app-button variant="outline" (pressed)="recordInteraction('outline')">Outline</app-button>
           <app-button variant="ghost" (pressed)="recordInteraction('ghost')">Ghost</app-button>
-          <app-button variant="perforated" icon="✂" (pressed)="recordInteraction('perforated')">
+          <app-button variant="perforated" (pressed)="recordInteraction('perforated')">
             Tear off pass
           </app-button>
         </div>

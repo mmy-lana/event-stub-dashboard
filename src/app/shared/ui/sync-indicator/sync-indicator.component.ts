@@ -26,7 +26,7 @@ export type SyncIndicatorLayout = 'inline' | 'panel';
       [class.is-syncing]="syncService.isSyncing()"
       [class.has-failures]="permanentFailureCount() > 0"
       role="status"
-      [attr.aria-live]="layout() === 'panel' ? 'polite' : 'off'">
+      aria-live="polite">
       <span class="indicator-dot" aria-hidden="true"></span>
 
       <span class="indicator-text">

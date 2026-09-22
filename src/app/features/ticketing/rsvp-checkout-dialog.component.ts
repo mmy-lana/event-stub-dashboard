@@ -201,6 +201,8 @@ export interface CheckoutOutcome {
         display: flex;
         flex-direction: column;
         background: var(--color-surface);
+        max-height: 100vh;
+        overflow: hidden;
       }
 
       @media (min-width: 768px) {
@@ -279,6 +281,7 @@ export interface CheckoutOutcome {
 
       .dialog-body {
         flex: 1 1 auto;
+        min-height: 0;
         display: grid;
         grid-template-columns: 1fr;
         gap: 16px;

@@ -132,7 +132,6 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
             <div class="panel-actions">
               <app-button
                 variant="neutral"
-                icon="🖨"
                 (pressed)="print()">
                 Print pass
               </app-button>
@@ -148,7 +147,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         </div>
       } @else {
         <section class="not-found" aria-live="polite">
-          <p class="not-found-icon" aria-hidden="true">🎫</p>
+          <svg class="empty-state-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
           <h1 class="not-found-title">Ticket not found</h1>
           <p class="not-found-body">
             No attendee ticket with this reference exists for the active event. It may have been
@@ -317,8 +319,10 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         border-radius: var(--radius-xl);
       }
 
-      .not-found-icon {
-        font-size: 38px;
+      .empty-state-svg {
+        width: 38px;
+        height: 38px;
+        color: var(--color-muted-soft);
       }
 
       .not-found-title {

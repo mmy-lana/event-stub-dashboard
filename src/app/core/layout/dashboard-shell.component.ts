@@ -322,10 +322,10 @@ export class DashboardShellComponent {
 
   /** Thumb-reachable dock shown on phones. */
   protected readonly dockLinks = [
-    { path: '/', label: 'Overview', icon: '▦', exact: true, highlight: false },
-    { path: '/attendees', label: 'Roster', icon: '☰', exact: false, highlight: false },
-    { path: '/terminal', label: 'Terminal', icon: '📷', exact: false, highlight: true },
-    { path: '/gallery', label: 'System', icon: '◆', exact: false, highlight: false }
+    { path: '/', label: 'Overview', icon: '[O]', exact: true, highlight: false },
+    { path: '/attendees', label: 'Roster', icon: '[R]', exact: false, highlight: false },
+    { path: '/terminal', label: 'Terminal', icon: '[T]', exact: false, highlight: true },
+    { path: '/gallery', label: 'System', icon: '[S]', exact: false, highlight: false }
   ] as const;
 
   /** Active event title, or `null` before a dataset exists. */
