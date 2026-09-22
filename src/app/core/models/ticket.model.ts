@@ -38,7 +38,11 @@ export type PaymentMethod = 'free' | 'stripe_card' | 'offline_cash';
 export type ScanMethod = 'camera_qr' | 'manual_button' | 'barcode_hardware';
 
 /** Kind of mutation stored in the offline outbox. */
-export type OutboxActionType = 'CHECK_IN_ATTENDEE' | 'CREATE_RSVP_ORDER' | 'CANCEL_TICKET';
+export type OutboxActionType =
+  | 'CHECK_IN_ATTENDEE'
+  | 'CREATE_RSVP_ORDER'
+  | 'CANCEL_TICKET'
+  | 'REVERSE_ADMISSION';
 
 /** Replication state of an offline mutation. */
 export type OutboxSyncStatus = 'pending' | 'syncing' | 'failed' | 'failed_permanent';

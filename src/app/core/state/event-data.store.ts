@@ -26,7 +26,6 @@ import { DemoSeedService, type SeedResult } from '../firebase/demo-seed.service'
 import { OfflineMutationService } from '../sync/offline-mutation.service';
 import type {
   AttendeeTicket,
-  CheckInAuditLog,
   EventModel,
   ScanMethod,
   TicketOrder,
@@ -262,12 +261,13 @@ export class EventDataStore {
   /**
    * Reverses an admission (door operator correction).
    *
-   * Runs in a single transaction: the ticket returns to `confirmed`, the
-   * denormalised checked-in counter is decremented and an audit entry is written,
-   * so a reversal can never leave the event counters or the audit trail disagreeing
-   * with the ticket document.
+   * Like {@link admitAttendee}, the outbox is the only writer: the reversal is
+   * queued durably and replicated inside a transaction that decrements the
+   * denormalised checked-in counter and appends an audit entry, so a correction
+   * made on a disconnected kiosk still lands once the venue network returns.
    *
    * @param ticket Attendee whose admission is reversed.
+   * @param operatorId Operator recorded on the audit trail.
    * @returns `true` when the reversal was applied locally.
    */
   public async reverseAdmission(
@@ -287,65 +287,13 @@ export class EventDataStore {
       updatedAt: timestamp
     });
 
-    try {
-      const attendeeRef = doc(this.firestore, FirestorePaths.attendee(eventId, ticket.id));
-      const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
-      const auditRef = doc(
-        this.firestore,
-        FirestorePaths.auditLog(eventId, `rev_${createIdentifier()}`)
-      );
-
-      await runTransaction(this.firestore, async (transaction) => {
-        const [attendeeSnapshot, eventSnapshot] = await Promise.all([
-          transaction.get(attendeeRef),
-          transaction.get(eventRef)
-        ]);
-
-        if (!attendeeSnapshot.exists()) {
-          throw new Error('ATTENDEE_NOT_FOUND');
-        }
-        if (attendeeSnapshot.data()['checkInStatus'] !== 'checked_in') {
-          throw new Error('TICKET_NOT_CHECKED_IN');
-        }
-
-        transaction.update(attendeeRef, {
-          checkInStatus: 'confirmed',
-          checkedInAt: null,
-          checkedInByUserId: null,
-          updatedAt: timestamp
-        });
-
-        if (eventSnapshot.exists()) {
-          const checkedIn = Number(eventSnapshot.data()['totalTicketsCheckedIn'] ?? 0);
-          transaction.update(eventRef, {
-            totalTicketsCheckedIn: Math.max(0, checkedIn - 1),
-            updatedAt: timestamp
-          });
-        }
-
-        const auditLog: Omit<CheckInAuditLog, 'id'> = {
-          attendeeId: ticket.id,
-          eventId,
-          timestamp,
-          operatorId,
-          scanMethod: 'manual_button',
-          wasOfflineCached: false
-        };
-        transaction.set(auditRef, auditLog);
-      });
-
-      return true;
-    } catch (error: unknown) {
-      this.errorMessageSignal.set(describeError(error));
-      // Roll the optimistic patch back so the UI never lies about the server state.
-      this.patchAttendeeLocally(ticket.id, {
-        checkInStatus: ticket.checkInStatus,
-        checkedInAt: ticket.checkedInAt,
-        checkedInByUserId: ticket.checkedInByUserId,
-        updatedAt: ticket.updatedAt
-      });
-      return false;
-    }
+    await this.outbox.queueReverseAdmissionMutation(
+      eventId,
+      ticket.id,
+      operatorId,
+      timestamp
+    );
+    return true;
   }
 
   /**
@@ -517,12 +465,4 @@ function describeError(error: unknown): string {
     return error.message;
   }
   return typeof error === 'string' ? error : 'Unknown Firestore error';
-}
-
-/** Creates a unique id for audit documents, falling back when `randomUUID` is absent. */
-function createIdentifier(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }

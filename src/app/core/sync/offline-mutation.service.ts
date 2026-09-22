@@ -168,6 +168,52 @@ export class OfflineMutationService {
     return mutation;
   }
 
+  /**
+   * Queues an admission reversal captured at the door.
+   *
+   * Reversals travel the same durable path as admissions so a mis-scan can be
+   * undone on a kiosk with no connectivity. Ordering matters and is preserved by
+   * the FIFO flush: when a scan was queued but not yet replicated, the reversal is
+   * appended after it, so the pair settles as admit-then-reverse.
+   *
+   * @param eventId Owning event id.
+   * @param ticketId Attendee ticket document id.
+   * @param operatorId Operator recorded on the audit trail.
+   * @param timestamp ISO 8601 capture time.
+   * @returns The queued item.
+   */
+  public async queueReverseAdmissionMutation(
+    eventId: string,
+    ticketId: string,
+    operatorId: string,
+    timestamp: string
+  ): Promise<OfflineOutboxItem> {
+    const mutation: OfflineOutboxItem = {
+      id: createIdentifier(),
+      actionType: 'REVERSE_ADMISSION',
+      entityId: ticketId,
+      payload: {
+        eventId,
+        checkInStatus: 'confirmed',
+        reversedAt: timestamp,
+        operatorId
+      },
+      createdAt: new Date().toISOString(),
+      retryCount: 0,
+      syncStatus: 'pending',
+      lastErrorMessage: null
+    };
+
+    await this.persistItem(mutation);
+    this.outboxQueueSignal.update((queue) => [...queue, mutation]);
+
+    if (this.isOnlineSignal()) {
+      await this.flushOutbox();
+    }
+
+    return mutation;
+  }
+
   /* ---------------------------------------------------------------------- */
   /* Replication                                                            */
   /* ---------------------------------------------------------------------- */
@@ -201,12 +247,37 @@ export class OfflineMutationService {
     let failed = 0;
 
     try {
-      for (const item of pending) {
-        const outcome = await this.replicate(item);
-        if (outcome) {
-          synced += 1;
-        } else {
-          failed += 1;
+      // Drain until no *new* work is left. A scan captured while a pass is already
+      // in flight used to hit the `isSyncingSignal` guard above, return `skipped`,
+      // and then sit unreplicated until the next scan or reconnect.
+      //
+      // Every item is attempted at most once per drain (hence `attempted`): retrying
+      // a rejected item immediately would spend its whole MAX_OFFLINE_RETRIES budget
+      // in one tight loop and escalate a single transient rejection straight to
+      // `failed_permanent`, which needs an operator to clear.
+      const attempted = new Set<string>();
+
+      for (;;) {
+        if (!this.isOnlineSignal()) {
+          break;
+        }
+
+        const activeQueue = this.outboxQueueSignal().filter(
+          (item) => item.syncStatus !== 'failed_permanent' && !attempted.has(item.id)
+        );
+
+        if (activeQueue.length === 0) {
+          break;
+        }
+
+        for (const item of activeQueue) {
+          attempted.add(item.id);
+          const outcome = await this.replicate(item);
+          if (outcome) {
+            synced += 1;
+          } else {
+            failed += 1;
+          }
         }
       }
     } finally {
@@ -225,6 +296,72 @@ export class OfflineMutationService {
    */
   private async replicate(item: OfflineOutboxItem): Promise<boolean> {
     try {
+      if (item.actionType === 'REVERSE_ADMISSION') {
+        const eventId = readString(item.payload['eventId']);
+        if (eventId === null) {
+          throw new Error(SYNC_ERRORS.unsupportedAction);
+        }
+
+        const attendeeRef = doc(this.firestore, FirestorePaths.attendee(eventId, item.entityId));
+        const eventRef = doc(this.firestore, FirestorePaths.event(eventId));
+        const auditRef = doc(this.firestore, FirestorePaths.auditLog(eventId, createIdentifier()));
+
+        await runTransaction(this.firestore, async (transaction) => {
+          const [attendeeSnapshot, eventSnapshot] = await Promise.all([
+            transaction.get(attendeeRef),
+            transaction.get(eventRef)
+          ]);
+
+          if (!attendeeSnapshot.exists()) {
+            throw new Error(SYNC_ERRORS.attendeeNotFound);
+          }
+
+          const status = attendeeSnapshot.data()['checkInStatus'];
+
+          // Already reversed — either this mutation committed but was never
+          // dequeued, or a second reversal lost the race. Idempotent no-op.
+          if (status === 'confirmed') {
+            return;
+          }
+
+          // Never resurrect a cancelled ticket: `refundTicket` already released the
+          // tier quota and decremented the checked-in counter for it, so confirming
+          // it here would both re-admit a refunded pass and double-count the counter.
+          if (status !== 'checked_in') {
+            throw new Error(SYNC_ERRORS.ticketCancelled);
+          }
+
+          transaction.update(attendeeRef, {
+            checkInStatus: 'confirmed',
+            checkedInAt: null,
+            checkedInByUserId: null,
+            updatedAt: new Date().toISOString()
+          });
+
+          if (eventSnapshot.exists()) {
+            const checkedIn = Number(eventSnapshot.data()['totalTicketsCheckedIn'] ?? 0);
+            transaction.update(eventRef, {
+              totalTicketsCheckedIn: Math.max(0, checkedIn - 1),
+              updatedAt: new Date().toISOString()
+            });
+          }
+
+          const auditLog: Omit<CheckInAuditLog, 'id'> = {
+            attendeeId: item.entityId,
+            eventId,
+            timestamp: readString(item.payload['reversedAt']) ?? new Date().toISOString(),
+            operatorId: readString(item.payload['operatorId']) ?? 'KIOSK_OPERATOR',
+            scanMethod: 'manual_button',
+            wasOfflineCached: true
+          };
+          transaction.set(auditRef, auditLog);
+        });
+
+        await this.removeItem(item.id);
+        this.outboxQueueSignal.update((queue) => queue.filter((entry) => entry.id !== item.id));
+        return true;
+      }
+
       if (item.actionType !== 'CHECK_IN_ATTENDEE') {
         throw new Error(SYNC_ERRORS.unsupportedAction);
       }
@@ -538,4 +675,7 @@ function describeError(error: unknown): string {
 }
 
 /** Action types the outbox understands; exported for UI copy. */
-export const SUPPORTED_OUTBOX_ACTIONS: readonly OutboxActionType[] = ['CHECK_IN_ATTENDEE'];
+export const SUPPORTED_OUTBOX_ACTIONS: readonly OutboxActionType[] = [
+  'CHECK_IN_ATTENDEE',
+  'REVERSE_ADMISSION'
+];
