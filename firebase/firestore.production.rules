@@ -95,7 +95,14 @@ service cloud.firestore {
         // Revenue data is organizer-only; the customer sees their own order.
         allow read: if isOrganizerOf(eventId)
           || (isSignedIn() && resource.data.customerEmail.lower() == request.auth.token.email.lower());
-        allow create: if isOrganizerOf(eventId) || isSignedIn();
+        // A customer may only open an order in a state that still needs settling:
+        // `pending`, or `free_rsvp` when nothing is owed. Otherwise the client could
+        // self-certify a paid order and skip the payment gate entirely.
+        allow create: if isOrganizerOf(eventId)
+          || (isSignedIn()
+              && (request.resource.data.paymentStatus == 'pending'
+                  || (request.resource.data.paymentStatus == 'free_rsvp'
+                      && request.resource.data.totalCents == 0)));
         // Refunds and payment-status transitions are organizer operations; the
         // production cascade is the `onOrderUpdated` Cloud Function.
         allow update: if isOrganizerOf(eventId);

@@ -331,7 +331,16 @@ export class EventDataStore {
         if (!attendeeSnapshot.exists()) {
           throw new Error('ATTENDEE_NOT_FOUND');
         }
-        if (attendeeSnapshot.data()['checkInStatus'] === 'cancelled') {
+
+        // Seats on an unsettled order are issued already cancelled, so refunding one
+        // would otherwise always trip the double-refund guard and the reserved quota
+        // could never be released — an abandoned checkout would hold its seats
+        // forever. A settled order keeps the guard.
+        const isPendingOrder =
+          orderSnapshot.exists() && orderSnapshot.data()['paymentStatus'] === 'pending';
+        const isCancelledTicket = attendeeSnapshot.data()['checkInStatus'] === 'cancelled';
+
+        if (isCancelledTicket && !isPendingOrder) {
           throw new Error('ALREADY_CANCELLED');
         }
 

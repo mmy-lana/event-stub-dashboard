@@ -150,6 +150,20 @@ export class CheckInTerminalStore {
 
       const eventId = this.data.activeEventId();
       const token = TicketSecurityUtility.parseToken(raw);
+
+      // A camera scan reads the printed pass, whose QR always carries the keyed
+      // digest. A payload without one is a bare stub reference, which has no tamper
+      // detection at all, so it is refused rather than silently admitted on a stub
+      // lookup. Manually keyed entry and hardware scanners keep their own paths.
+      if (scanMethod === 'camera_qr' && token === null) {
+        return this.reject(
+          'tampered',
+          raw,
+          'Scanned QR pass lacks cryptographic verification token.',
+          attendee
+        );
+      }
+
       if (token !== null && eventId !== null) {
         const verified = TicketSecurityUtility.verifyPayload(token, eventId);
         if (!verified) {
