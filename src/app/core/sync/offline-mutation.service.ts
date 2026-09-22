@@ -362,6 +362,7 @@ export class OfflineMutationService {
           const auditLog: Omit<CheckInAuditLog, 'id'> = {
             attendeeId: item.entityId,
             eventId,
+            action: 'reverse',
             timestamp: readString(item.payload['reversedAt']) ?? new Date().toISOString(),
             operatorId: readString(item.payload['operatorId']) ?? 'KIOSK_OPERATOR',
             scanMethod: 'manual_button',
@@ -436,6 +437,7 @@ export class OfflineMutationService {
         const auditLog: Omit<CheckInAuditLog, 'id'> = {
           attendeeId: item.entityId,
           eventId,
+          action: 'admit',
           timestamp: checkedInAt,
           operatorId,
           scanMethod,

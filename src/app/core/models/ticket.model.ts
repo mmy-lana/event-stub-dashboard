@@ -181,11 +181,12 @@ export interface OfflineOutboxItem {
   readonly lastErrorMessage: string | null;
 }
 
-/** Immutable audit trail entry written on every successful admission. */
+/** Immutable audit trail entry written on every admission or reversal. */
 export interface CheckInAuditLog {
   readonly id: string;
   readonly attendeeId: string;
   readonly eventId: string;
+  readonly action: 'admit' | 'reverse';
   readonly timestamp: string;
   readonly operatorId: string;
   readonly scanMethod: ScanMethod;

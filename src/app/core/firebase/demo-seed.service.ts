@@ -403,6 +403,7 @@ function buildAuditLogs(attendees: readonly AttendeeTicket[]): readonly CheckInA
       id: `log_${attendee.id}`,
       attendeeId: attendee.id,
       eventId: DEMO_EVENT_ID,
+      action: 'admit',
       timestamp: attendee.checkedInAt,
       operatorId: attendee.checkedInByUserId ?? 'kiosk_door_b',
       scanMethod: 'camera_qr',
