@@ -1,4 +1,4 @@
-# StubDeck | Event RSVP & Ticketing Dashboard
+# Event Stub Dashboard | RSVP & Ticketing Terminal
 
 > High-throughput, offline-first admission terminal and ticket stub platform built with Angular Signals, modular Firebase, and zero-dependency ISO matrix encoders.
 
@@ -10,7 +10,7 @@
 
 Most ticketing web applications fail at the venue door: cell reception collapses inside underground convention halls, concurrent scans oversell tier quotas, and asset-heavy scanner interfaces lag on field mobile devices.
 
-**StubDeck** is engineered as a resilient, Tier-1 gate admission and ticketing system that operates with deterministic reliability across flaky connections or total offline blackouts. It blends modern Eventbrite operational workflows with skeuomorphic physical ticket stubs, backed by an atomic transaction engine and client-side cryptographic verification.
+**Event Stub Dashboard** is engineered as a resilient, Tier-1 gate admission and ticketing system that operates with deterministic reliability across flaky connections or total offline blackouts. It blends modern Eventbrite operational workflows with skeuomorphic physical ticket stubs, backed by an atomic transaction engine and client-side cryptographic verification.
 
 ```
                     +------------------------------------------+
@@ -47,7 +47,7 @@ Most ticketing web applications fail at the venue door: cell reception collapses
 ## Core Engineering Highlights
 
 ### 1. Offline Gate Survivability (IndexedDB Outbox Engine)
-* **Zero Dropped Passes:** Scans performed while disconnected commit instantly to an IndexedDB outbox (`stubdeck_offline_db`) and update local signal stores optimistically.
+* **Zero Dropped Passes:** Scans performed while disconnected commit instantly to an IndexedDB outbox (`event_stub_dashboard_db`) and update local signal stores optimistically.
 * **Continuous Drain Loop:** Upon network reconnection, `OfflineMutationService` drains the queue sequentially. Mutations queued in the middle of an in-flight sync cycle are captured without queue starvation.
 * **Idempotent Reconciliation:** Server-side `runTransaction` checks guard against duplicate admissions and audit-trail drift, preventing double-counts when multiple kiosks synchronize simultaneously.
 

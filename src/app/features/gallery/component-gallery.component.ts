@@ -47,7 +47,7 @@ import { TicketSecurityUtility } from '../../shared/utils/ticket-cryptography';
   template: `
     <div class="gallery">
       <header class="gallery-header">
-        <p class="eyebrow">STUBDECK DESIGN SYSTEM</p>
+        <p class="eyebrow">EVENT STUB DASHBOARD DESIGN SYSTEM</p>
         <h1 class="title">Component gallery</h1>
         <p class="subtitle">
           Every primitive and molecule in each supported state. Used for visual review, keyboard

@@ -56,6 +56,12 @@ const DIGIT_ALPHABET = '0123456789';
  * Set `VITE_TICKET_VERIFICATION_SECRET` to override it per environment. Note that
  * Vite inlines `VITE_*` values at build time, so the override is compiled into the
  * bundle too — it enables rotation between deployments, not secrecy.
+ *
+ * The literal below intentionally keeps its original `STUBDECK_` prefix. It is a
+ * digest key, not a display string: changing it changes every digest, and every pass
+ * already stored in `attendees/{id}.qrVerificationSecret` would begin verifying as
+ * `tampered`. Rebranding this value would silently invalidate all issued passes, so
+ * it may only change together with a re-issue of every ticket.
  */
 const DEFAULT_VERIFICATION_SECRET = 'STUBDECK_GATE_SECURITY_SALT_9841';
 

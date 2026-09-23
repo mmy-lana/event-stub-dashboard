@@ -18,7 +18,7 @@ export const routes: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        title: 'Event overview · StubDeck',
+        title: 'Event overview · Event Stub Dashboard',
         loadComponent: () =>
           import('./features/dashboard/event-dashboard.component').then(
             (m) => m.EventDashboardComponent
@@ -26,7 +26,7 @@ export const routes: Routes = [
       },
       {
         path: 'attendees',
-        title: 'Attendee roster · StubDeck',
+        title: 'Attendee roster · Event Stub Dashboard',
         loadComponent: () =>
           import('./features/attendees/attendee-roster.component').then(
             (m) => m.AttendeeRosterComponent
@@ -34,7 +34,7 @@ export const routes: Routes = [
       },
       {
         path: 'terminal',
-        title: 'Check-in terminal · StubDeck',
+        title: 'Check-in terminal · Event Stub Dashboard',
         loadComponent: () =>
           import('./features/terminal/check-in-terminal.component').then(
             (m) => m.CheckInTerminalComponent
@@ -44,7 +44,7 @@ export const routes: Routes = [
         // `ticketId` is bound straight into the component input by
         // `withComponentInputBinding()` (see app.config.ts).
         path: 'tickets/:ticketId',
-        title: 'Ticket pass · StubDeck',
+        title: 'Ticket pass · Event Stub Dashboard',
         loadComponent: () =>
           import('./features/ticketing/ticket-detail-sheet.component').then(
             (m) => m.TicketDetailSheetComponent
@@ -54,7 +54,7 @@ export const routes: Routes = [
   },
   {
     path: 'gallery',
-    title: 'Design system · StubDeck',
+    title: 'Design system · Event Stub Dashboard',
     loadComponent: () =>
       import('./features/gallery/component-gallery.component').then(
         (m) => m.ComponentGalleryComponent

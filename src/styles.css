@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   StubDeck design tokens
+   Event Stub Dashboard design tokens
    --------------------------------------------------------------------------
    Single source of truth for colour, spacing, radius, elevation and touch
    ergonomics. Every component styles itself through these custom properties so

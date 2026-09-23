@@ -23,9 +23,9 @@ import { SyncIndicatorComponent } from '../../shared/ui/sync-indicator/sync-indi
 
       <header class="top-nav">
         <div class="nav-left">
-          <a class="brand-logo" routerLink="/" aria-label="StubDeck home">
+          <a class="brand-logo" routerLink="/" aria-label="Event Stub Dashboard home">
             <span class="logo-mark" aria-hidden="true">◆</span>
-            <span class="logo-text">STUBDECK</span>
+            <span class="logo-text">EVENT STUB DASHBOARD</span>
           </a>
 
           <span class="event-context-pill" [class.is-empty]="eventTitle() === null">

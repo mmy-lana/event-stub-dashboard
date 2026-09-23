@@ -207,14 +207,18 @@ function buildEvent(now: Date, tiers: readonly TicketTier[], attendees: readonly
 
   return {
     id: DEMO_EVENT_ID,
-    organizerId: 'org_stubdeck_demo',
+    organizerId: 'org_event_stub_dashboard_demo',
     title: 'Summit Tech Conf 2026',
     slug: 'summit-tech-conf-2026',
     summary: 'Two halls, 40 speakers and a full day of platform engineering.',
     description:
       'The annual platform engineering summit: distributed systems, developer experience and ' +
       'on-call culture across two halls, with a workshop track and an evening reception.',
-    bannerImageUrl: 'https://images.stubdeck.dev/banners/summit-tech-conf-2026.jpg',
+    // Points at a real, publicly reachable image. The previous host
+    // (`images.stubdeck.dev`) does not resolve, so the seeder was shipping a banner
+    // that always failed to load and fell back to the placeholder treatment.
+    bannerImageUrl:
+      'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80',
     eventType: 'in_person',
     venue: {
       venueName: 'Moscone Center, Hall D',

@@ -8,3 +8,5 @@ firebase-data
 *.log
 .DS_Store
 repomix-output.xml
+firebase-export-*
+emulator-data

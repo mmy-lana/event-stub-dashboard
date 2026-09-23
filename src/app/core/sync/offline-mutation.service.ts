@@ -58,8 +58,15 @@ export class OfflineMutationService {
   private readonly config = inject(FIREBASE_CONFIG);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** IndexedDB database and object store holding the queue. */
-  private readonly databaseName = 'stubdeck_offline_db';
+  /**
+   * IndexedDB database and object store holding the queue.
+   *
+   * Renaming the database abandons any queue persisted under the previous name.
+   * Pending admissions captured offline in an already-installed client would be
+   * dropped on the next load, so the migration must be deliberate: an in-field
+   * rename needs a copy step, not just a new constant.
+   */
+  private readonly databaseName = 'event_stub_dashboard_db';
   private readonly storeName = 'mutation_outbox';
 
   private database: IDBDatabase | null = null;

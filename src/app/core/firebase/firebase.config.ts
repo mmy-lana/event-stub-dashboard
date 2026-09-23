@@ -123,7 +123,7 @@ export function provideTicketingFirebase(
 ): EnvironmentProviders {
   if (config.warning !== null) {
     // Surfaced once at bootstrap so a misconfigured deployment is obvious.
-    console.warn(`[StubDeck] ${config.warning}`);
+    console.warn(`[Event Stub Dashboard] ${config.warning}`);
   }
 
   // Keying the ticket digest must happen before any pass is minted or verified, so
