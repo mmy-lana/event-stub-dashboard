@@ -20,7 +20,7 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { doc, runTransaction } from 'firebase/firestore';
 
-import { FIRESTORE_DB } from '../firebase/firebase.config';
+import { FIREBASE_CONFIG, FIRESTORE_DB } from '../firebase/firebase.config';
 import { FirestorePaths } from '../firebase/firestore-paths';
 import {
   VALIDATION_RULES,
@@ -55,6 +55,7 @@ export interface FlushResult {
 @Injectable({ providedIn: 'root' })
 export class OfflineMutationService {
   private readonly firestore = inject(FIRESTORE_DB);
+  private readonly config = inject(FIREBASE_CONFIG);
   private readonly destroyRef = inject(DestroyRef);
 
   /** IndexedDB database and object store holding the queue. */
@@ -239,6 +240,13 @@ export class OfflineMutationService {
    */
   public async flushOutbox(): Promise<FlushResult> {
     if (this.isSyncingSignal()) {
+      return { synced: 0, failed: 0, skipped: true };
+    }
+
+    // Offline preview has no backend to replicate into. Flushing would spend every
+    // entry's retry budget on transport failures and eventually mark healthy
+    // admissions as `failed_permanent`, so the queue is left parked instead.
+    if (this.config.isMockMode) {
       return { synced: 0, failed: 0, skipped: true };
     }
 

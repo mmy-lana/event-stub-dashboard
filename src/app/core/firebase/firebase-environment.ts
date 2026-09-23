@@ -16,6 +16,13 @@ export interface FirebaseEnvironmentConfig {
   readonly messagingSenderId: string;
   readonly appId: string;
   readonly useEmulator: boolean;
+  /**
+   * `true` when no live backend is reachable for this build: neither the emulator
+   * flag nor a complete cloud credential pair is present. The application then
+   * boots into an offline preview backed by the in-memory mock dataset instead of
+   * failing at startup.
+   */
+  readonly isMockMode: boolean;
   readonly emulatorHost: string;
   readonly emulatorPorts: EmulatorPorts;
   /**
@@ -121,17 +128,21 @@ function readPort(value: string | boolean | undefined, fallback: number, label: 
  * Emulator mode is opt-in and never inferred:
  *
  * 1. `VITE_USE_FIREBASE_EMULATOR=true` runs against the local emulator suite.
- * 2. Anything else is treated as a cloud build and must carry
- *    `VITE_FIREBASE_API_KEY` and `VITE_FIREBASE_APP_ID`.
+ * 2. A complete credential pair (`VITE_FIREBASE_API_KEY` + `VITE_FIREBASE_APP_ID`)
+ *    runs against the cloud project.
+ * 3. Anything else resolves to `isMockMode`: the app boots into an offline preview
+ *    served by the in-memory mock dataset.
  *
- * An absent flag with no credentials is a misconfiguration and fails fast. Silently
- * redirecting a credential-less production build to `127.0.0.1` would make the app
- * appear to work while writing every registration to a laptop that is not there.
+ * Resolution never throws for a missing backend, so a static deployment without
+ * secrets renders the dashboard instead of a blank page. Redirecting such a build to
+ * `127.0.0.1` is still deliberately not done: mock mode is flagged explicitly and
+ * every write path is intercepted locally rather than pointed at a laptop that is not
+ * there.
  *
  * @param env Raw environment bag; defaults to `import.meta.env`.
  * @returns A frozen, fully typed configuration object.
- * @throws {FirebaseEnvironmentError} When a provided value is malformed, or when a
- *   production configuration is incomplete.
+ * @throws {FirebaseEnvironmentError} When a provided value is malformed (for example
+ *   an out-of-range emulator port).
  */
 export function resolveFirebaseEnvironmentConfig(
   env: FirebaseEnvironmentSource = import.meta.env
@@ -146,15 +157,19 @@ export function resolveFirebaseEnvironmentConfig(
   const useEmulator =
     explicitEmulatorFlag !== undefined ? readBoolean(explicitEmulatorFlag, false) : false;
 
-  if (!useEmulator && !hasCredentials) {
-    throw new FirebaseEnvironmentError(
-      'Production Firebase configuration is incomplete: VITE_FIREBASE_API_KEY and ' +
-        'VITE_FIREBASE_APP_ID are required in production environments. Set ' +
-        'VITE_USE_FIREBASE_EMULATOR=true to run against the local emulator suite.'
-    );
-  }
+  // A credential-less build is no longer fatal. It used to throw here, which killed
+  // the Angular bootstrap before the first render and produced a blank white page on
+  // any host without `VITE_FIREBASE_*` (Vercel previews, static exports, CI smoke
+  // runs). The application instead degrades to an offline preview: the in-memory
+  // mock engine in `EventDataStore` serves a complete dataset, and no Firestore read
+  // is ever issued for it.
+  const isMockMode = !useEmulator && !hasCredentials;
 
-  const warning: string | null = null;
+  const warning: string | null = isMockMode
+    ? 'No Firebase backend is configured. Running in offline preview mode with the ' +
+      'in-memory mock dataset. Set VITE_FIREBASE_API_KEY and VITE_FIREBASE_APP_ID for ' +
+      'live cloud storage, or VITE_USE_FIREBASE_EMULATOR=true for the local emulator.'
+    : null;
 
   const emulatorHost = readString(env['VITE_FIREBASE_EMULATOR_HOST']) ?? DEFAULT_EMULATOR_HOST;
 
@@ -184,6 +199,7 @@ export function resolveFirebaseEnvironmentConfig(
     messagingSenderId: readString(env['VITE_FIREBASE_MESSAGING_SENDER_ID']) ?? '123456789',
     appId: appId ?? '1:123456789:web:abcdef',
     useEmulator,
+    isMockMode,
     emulatorHost,
     emulatorPorts: Object.freeze(emulatorPorts),
     warning

@@ -56,6 +56,9 @@ export class EventDashboardStore {
   /** Whether demo data can be loaded in this environment. */
   public readonly canSeedDemoData = this.data.canSeedDemoData;
 
+  /** `true` when the dataset comes from the in-memory mock engine, not Firestore. */
+  public readonly isMockMode = this.data.isMockMode;
+
   /** `true` when the project has no events yet. */
   public readonly isEmpty = this.data.isEmpty;
 

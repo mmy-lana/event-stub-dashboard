@@ -63,6 +63,15 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
           }
         </section>
       } @else if (event(); as currentEvent) {
+        @if (store.isMockMode()) {
+          <p class="mock-banner" role="status">
+            <span class="mock-tag">[MOCK]</span>
+            Offline preview mode: this deployment has no Firebase credentials, so the dashboard is
+            rendering an in-memory dataset. Admissions and refunds are applied locally and are not
+            persisted. Set VITE_FIREBASE_API_KEY and VITE_FIREBASE_APP_ID for live data.
+          </p>
+        }
+
         <header class="page-header">
           <div class="header-main">
             <p class="eyebrow">
@@ -377,6 +386,32 @@ import { DateFormatUtility } from '../../shared/utils/date-format.util';
         font-size: 12px;
         font-weight: 700;
         color: var(--color-emerald-deep);
+      }
+
+      .mock-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--color-border-strong);
+        border-radius: var(--radius-md);
+        background: var(--color-canvas);
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--color-slate-600);
+      }
+
+      .mock-tag {
+        flex: 0 0 auto;
+        padding: 2px 8px;
+        border-radius: var(--radius-pill);
+        background: var(--color-info-soft);
+        color: var(--color-info);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
       }
 
       .banner-close {
