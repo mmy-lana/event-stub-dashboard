@@ -111,7 +111,7 @@ Tested and hardened across standard mobile, tablet, and desktop viewports. Criti
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/your-org/event-stub-dashboard.git
+git clone https://github.com/mmy-lana/event-stub-dashboard.git
 cd event-stub-dashboard
 pnpm install
 ```
