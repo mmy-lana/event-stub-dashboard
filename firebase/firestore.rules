@@ -14,8 +14,15 @@ rules_version = '2';
 // docker-compose passes as `firebase emulators:start --config`.
 //
 // Starting the suite without that flag therefore loads the production rules and
-// every write fails with permission-denied. Use `pnpm emulator:up`, or pass
-// `--config firebase/firebase.emulator.json` when running firebase-tools by hand.
+// every write fails with "PERMISSION_DENIED: false for 'create' @ L64". Use
+// `pnpm emulator:up`, or pass `--config firebase/firebase.emulator.json` when
+// running firebase-tools by hand.
+//
+// A container started before that flag existed keeps running without it, so the
+// dashboard silently loads `firestore.production.rules` instead and the demo seed
+// is denied. Recreate the container after any change to the compose command:
+//
+//   docker compose rm -sf firebase-emulator && pnpm emulator:up
 service cloud.firestore {
   match /databases/{database}/documents {
     match /events/{eventId} {
@@ -36,6 +43,13 @@ service cloud.firestore {
       match /audit_logs/{auditLogId} {
         allow read, write: if true;
       }
+    }
+
+    // Any other collection stays closed even in the emulator, matching the default
+    // deny at the bottom of `firestore.production.rules` so a missing match block
+    // behaves identically in both rule sets.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

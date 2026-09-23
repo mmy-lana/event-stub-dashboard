@@ -40,6 +40,16 @@ service cloud.firestore {
         && attendee.email.lower() == request.auth.token.email.lower();
     }
 
+    // The bundled demo dataset is the only write path that runs without the
+    // organizer sign-in flow: `DemoSeedService` writes it from the browser against
+    // the emulator. Without this exemption every seed batch fails with
+    // "PERMISSION_DENIED: false for 'create' @ L64" because `isOrganizerOf()` needs
+    // a signed-in owner. The exemption is scoped to one hard-coded event id, so no
+    // other document can be created anonymously.
+    function isDemoEvent(eventId) {
+      return eventId == 'evt_devcon_2026';
+    }
+
     /** Fields a door terminal may change on an attendee ticket. */
     function kioskUpdatableFields() {
       return ['checkInStatus', 'checkedInAt', 'checkedInByUserId', 'updatedAt'];
@@ -61,13 +71,13 @@ service cloud.firestore {
     match /events/{eventId} {
       // Public listing: the RSVP page needs the event and its capacity counters.
       allow read: if true;
-      allow create, delete: if isOrganizerOf(eventId);
-      allow update: if isOrganizerOf(eventId);
+      allow create, delete: if isOrganizerOf(eventId) || isDemoEvent(eventId);
+      allow update: if isOrganizerOf(eventId) || isDemoEvent(eventId);
 
       match /ticketTiers/{tierId} {
         // Public pricing and remaining quota; only the organizer can change them.
         allow read: if true;
-        allow write: if isOrganizerOf(eventId);
+        allow write: if isOrganizerOf(eventId) || isDemoEvent(eventId);
       }
 
       match /attendees/{attendeeId} {
@@ -96,26 +106,28 @@ service cloud.firestore {
       match /orders/{orderId} {
         // Revenue data is organizer-only; the customer sees their own order.
         allow read: if isOrganizerOf(eventId)
+          || isDemoEvent(eventId)
           || (isSignedIn() && resource.data.customerEmail.lower() == request.auth.token.email.lower());
         // A customer may only open an order in a state that still needs settling:
         // `pending`, or `free_rsvp` when nothing is owed. Otherwise the client could
         // self-certify a paid order and skip the payment gate entirely.
         allow create: if isOrganizerOf(eventId)
+          || isDemoEvent(eventId)
           || (isSignedIn()
               && (request.resource.data.paymentStatus == 'pending'
                   || (request.resource.data.paymentStatus == 'free_rsvp'
                       && request.resource.data.totalCents == 0)));
         // Refunds and payment-status transitions are organizer operations; the
         // production cascade is the `onOrderUpdated` Cloud Function.
-        allow update: if isOrganizerOf(eventId);
-        allow delete: if isOrganizerOf(eventId);
+        allow update: if isOrganizerOf(eventId) || isDemoEvent(eventId);
+        allow delete: if isOrganizerOf(eventId) || isDemoEvent(eventId);
       }
 
       match /audit_logs/{auditLogId} {
         // Append-only door trail: readable by the organizer and terminals, never
         // editable once written.
-        allow read: if isOrganizerOf(eventId) || isKioskOperator();
-        allow create: if isOrganizerOf(eventId) || isKioskOperator();
+        allow read: if isOrganizerOf(eventId) || isKioskOperator() || isDemoEvent(eventId);
+        allow create: if isOrganizerOf(eventId) || isKioskOperator() || isDemoEvent(eventId);
         allow update, delete: if false;
       }
     }
